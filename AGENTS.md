@@ -13,7 +13,8 @@ Read PROJECT.md and STATUS.md first. This is a React + TypeScript + Vite vector 
 ## Layout
 
 - `src/`: React frontend and styling.
-- `src/core/`: UI-independent geometry and history.
+- `src/core/`: UI-independent geometry, multi-shape document operations, migration and history.
+- `src/components/`: Canvas, shared controls and shadcn/ui Collapsible.
 - `tests/`: Node fixtures for transforms, culling, export and history.
 - `PROJECT.md`: product requirements, geometry architecture and milestone acceptance criteria.
 - `.github/workflows/ci.yml`: frozen dependency install, lint and production build.
@@ -28,3 +29,5 @@ Work on `dev` or a short-lived branch from it. Promote to `main` only through a 
 Keep geometry and document commands independent of the UI. Use the same transform engine for preview, export and eventual MCP operations. Do not label arbitrary repeated motifs as guaranteed seamless tessellations.
 
 This is the isolated GPT comparison project. Do not modify ../tesselate or stop its preview.
+
+The current document schema is version 2 (`shapes[]`). Preserve migration from the old single-shape storage key. Shape additions must be additive, and all visible layers repeat/export together in stacking order. Derive guide cells and instance positions from the same lattice basis; hexagon mode is regular and derives vertical pitch from cell width.

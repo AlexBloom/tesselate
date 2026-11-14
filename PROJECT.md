@@ -62,3 +62,7 @@ The new-project workflow covers a starter, build/preview verification, CI config
 ## Model comparison isolation
 
 Restarted from the original brief on November 14, 2026. This folder is independent of the other agent’s tesselate project. Do not edit or reuse its active working files. Preview uses port 5174.
+
+## Layered editing milestone
+
+Implemented additive shapes with per-layer geometry/style/visibility, whole-shape positioning, duplicate/delete/stacking operations, versioned document migration and multi-shape exports. Guides now match each repeat geometry and hex mode uses a regular lattice. Studio panels use shadcn/ui Collapsible, with independent section expansion and dock icon rails. Constrained edge pairing and multiple independently configured artboards remain future milestones.

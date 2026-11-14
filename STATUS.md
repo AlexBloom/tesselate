@@ -2,31 +2,30 @@
 
 Updated November 14, 2026 (America/New_York).
 
-## Project isolation and infrastructure
+## Isolation and infrastructure
 
-- Local project: `/Users/alexbloom/Documents/GitHub/tesselate-gpt`; React + TypeScript + Vite + pnpm. Work remains on `dev`.
-- Public repository: https://github.com/AlexBloom/tesselate-gpt. `dev` default; `main` protected. Nothing deployed; no domain or hosting configured.
-- Original `../tesselate` folder and port 5173 were not modified or stopped.
-- Local preview: http://127.0.0.1:5174/. Restart: `pnpm dev --host 127.0.0.1 --port 5174 --strictPort`. Existing retained terminal session 23389 hosts the preview. Browser inspection confirmed the new editor renders.
+- Project: `/Users/alexbloom/Documents/GitHub/tesselate-gpt`; Vite + React + TypeScript + pnpm. Work remains on `dev`.
+- Repository: https://github.com/AlexBloom/tesselate-gpt. Nothing deployed; no hosting or domain configured. `main` remains protected.
+- Preview: http://127.0.0.1:5174/. Restart: `pnpm dev --host 127.0.0.1 --port 5174 --strictPort`.
+- Original `../tesselate` and port 5173 were not modified or stopped.
 
-## First editor build
+## Layered editor update
 
-- Implemented UI-independent affine transforms, closed polygon/cubic path generation, conservative culling, bounded repeat counts, SVG export and document validation.
-- Implemented node drag/numeric/nudge editing, insertion/deletion, polygon drawing with a live draft, curve softness, grouped gesture undo/redo, pan/zoom, focused repeated context and independently navigable split preview.
-- Added grid, half-drop, hex-center lattice and radial layouts, alternating reflections, a snowflake wedge starter, fill/background/stroke controls and deterministic palette choices.
-- Added browser-local autosave/recovery and a single centered export crop with output dimensions/scale. PNG encodes from the same vector SVG. Export limits are explicit; unfinished contours must be closed first.
-- Added nine Node fixtures and wired tests into CI.
+- Version 2 document schema stores up to 64 shapes with independent points, smoothing, name, fill/stroke and visibility. Presets, snowflake wedges and pen contours add shapes without replacing existing work.
+- Added whole-shape drag/nudge/numeric positioning, canvas and layer selection, direct node editing, duplicate/delete and forward/backward stacking. All visible shapes repeat as one composition.
+- Multi-shape culling, grouped history, SVG and PNG exports share the same document/transform engine. Hidden layers are excluded from source/repeats/exports. An empty composition is supported.
+- Added v1 single-shape migration to v2 local storage; original v1 storage is retained as backup.
+- Geometry guide layer uses rectangles for grid, a parallelogram for half-drop, regular hexagons for hex mode and sectors for radial. Hex pitch derives from width, and lattice-cell guides remain independent of motif rotation. The previous generic square/circle overlays were removed.
+- Added official shadcn/ui Radix Collapsible primitive and reusable sections. Both docks collapse to icon rails, and individual sections toggle independently.
+- Updated dependencies and lockfile with `@radix-ui/react-collapsible`. No new environment variables or services.
 
 ## Verification
 
-- `pnpm build`, `pnpm lint`, `pnpm test`: passed (nine tests, no lint warnings).
-- Browser verified dragging, drag undo/redo, keyboard nudge, matched path data between both panes, independent preview panning, radial sector counts/reflection, polygon draft undo/finish, and autosave across reload.
-- Browser downloaded 1600×1200 SVG; XML inspection confirmed dimensions, reusable instances and no embedded raster images. PNG browser encoder reported successful 1600×1200 export; file-level download inspection was unavailable.
-- Checked mobile 440 px and desktop 1440 px layouts: no horizontal overflow; desktop split panes share the same top and have independent bounds. Restored normal browser viewport afterward.
-- Screenshot: `/Users/alexbloom/.codex/visualizations/2026/11/14/01a1da6f-3f23-7610-94a5-f4fe6dd52706/tesselate-editor.jpg`.
+- Production build and lint passed. Fourteen fixtures cover shape isolation, grouped multi-shape history, migration, invalid documents, export stacking/visibility, uniform translation limits and exact hex guide/lattice edges.
+- Browser tests ran in a separate localhost-origin tab to avoid changing the user's live 127.0.0.1 composition. Confirmed additive presets and polygon drawing; body movement and node nudge affect only the selected layer; drag/drawing/duplicate/delete undo; naming, per-layer style, visibility and stacking; synchronized split composition; guide shape switching and visibility; panel/rail collapse and reopening; reload recovery; successful 640×480 PNG encoding.
+- Browser console had no errors or warnings during verification.
+- No production deployment is authorized.
 
 ## Remaining milestones
 
-No constrained seamless edges, Boolean wedge cuts, imported SVG, manually editable Bézier handles, multiple motifs/artboards, seeded parameter-sweep gallery, MCP adapter or macOS package yet. Current smooth paths have automatic handles, and all repeats are explicitly free motif repetitions. See PROJECT.md for the sequence.
-
-Next: validate the drawing feel with Alex, then implement paired translation edges and richer vector editing. No production release is authorized.
+Constrained seamless edge pairing, Boolean paper cuts, SVG import, manual Bézier handles, multiple independently configured artboards, seeded parameter-sweep generation, MCP adapter and macOS package remain pending. Free motif repetition is not claimed to produce a gap-free tessellation.
