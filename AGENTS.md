@@ -1,6 +1,6 @@
 # Agent guidance
 
-Read PROJECT.md and STATUS.md first. This is a React + TypeScript + Vite starter for a web-first vector pattern editor. The drawing application is not implemented yet.
+Read PROJECT.md and STATUS.md first. This is a React + TypeScript + Vite vector pattern editor. The first interactive editor is implemented; read README.md for supported workflows and limitations.
 
 ## Commands
 
@@ -8,11 +8,13 @@ Read PROJECT.md and STATUS.md first. This is a React + TypeScript + Vite starter
 - Run: `pnpm dev --host 127.0.0.1 --port 5174`
 - Build/typecheck: `pnpm build`
 - Lint: `pnpm lint`
-- No test suite exists yet. Add meaningful geometry fixtures when implementing the repeat engine.
+- Test: `pnpm test` (Node geometry, export and history fixtures).
 
 ## Layout
 
-- `src/`: React frontend and styling; currently a starter page.
+- `src/`: React frontend and styling.
+- `src/core/`: UI-independent geometry and history.
+- `tests/`: Node fixtures for transforms, culling, export and history.
 - `PROJECT.md`: product requirements, geometry architecture and milestone acceptance criteria.
 - `.github/workflows/ci.yml`: frozen dependency install, lint and production build.
 - `dist/`: generated output, ignored by Git.

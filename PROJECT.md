@@ -57,7 +57,7 @@ The focused canvas shows a strong source motif and subdued surrounding instances
 
 ## Setup scope
 
-The new-project workflow covers a starter, build/preview verification, CI configuration and handoff records. Product features above are a subsequent build, as required by the setup skill. No product functionality has been implemented yet.
+The new-project workflow covers a starter, build/preview verification, CI configuration and handoff records. Product features above are a subsequent build, as required by the setup skill. Setup is complete. The first interactive product build now implements motif editing, polygon drawing, live repeats, split preview, local saving and single-crop SVG/PNG export. README.md documents the exact limits; later milestones below remain the roadmap.
 
 ## Model comparison isolation
 
