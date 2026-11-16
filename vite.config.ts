@@ -3,6 +3,6 @@ import { defineConfig } from 'vite'
 
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => ({
-  base: mode === 'production' ? '/tesselate-gpt/' : '/',
+  base: mode === 'production' ? '/tesselate/' : '/',
   plugins: [react()],
 }))

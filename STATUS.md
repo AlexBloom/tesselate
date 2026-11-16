@@ -4,7 +4,7 @@ Updated November 16, 2026 (America/New_York).
 
 ## Project and preview
 
-- Independent project: `/Users/alexbloom/Documents/GitHub/tesselate-gpt`; branch `dev`; repository https://github.com/AlexBloom/tesselate-gpt.
+- Independent project: `/Users/alexbloom/Documents/GitHub/tesselate-gpt`; branch `dev`; repository https://github.com/AlexBloom/tesselate.
 - Original `../tesselate` and port 5173 remain untouched.
 - Preview opened on a new port: http://127.0.0.1:5175/. Restart with `pnpm dev --host 127.0.0.1 --port 5175 --strictPort`; retained session 11889. Previous port 5174 was left running. Production is live (see below).
 
@@ -29,9 +29,9 @@ Existing shared-edge/Escher design goals remain in PROJECT.md. Constrained edge 
 ## Neutral interface and production release
 
 - Neutral grayscale interface with stronger control labels, borders, active states and selection handles. Artwork palettes and saved drawing colors are preserved.
-- Manual Pages workflow added with lint, geometry tests and production build. Production assets use `/tesselate-gpt/`; local development retains `/`.
-- Released November 16, 2026 through promotion PR #5. Production deployment passed: https://github.com/AlexBloom/tesselate-gpt/actions/runs/43946697911.
-- Live Pages link: https://alexbloom.github.io/tesselate-gpt/ redirects to the account’s existing domain at https://alexbloom.design/tesselate-gpt/. Verified HTTP 200 and the rendered editor, with no browser console errors/warnings. No DNS or account-domain changes were made.
+- Manual Pages workflow added with lint, geometry tests and production build. Production assets use `/tesselate/`; local development retains `/`.
+- Released November 16, 2026 through promotion PR #5. Production deployment passed: https://github.com/AlexBloom/tesselate/actions/runs/43946697911.
+- Live Pages link: https://alexbloom.github.io/tesselate/ redirects to the account’s existing domain at https://alexbloom.design/tesselate/. Verified HTTP 200 and the rendered editor, with no browser console errors/warnings. No DNS or account-domain changes were made.
 - Build, lint and all 30 tests pass locally and in CI. Neutral UI reviewed visually; drawing colors retained.
 
 ## Square placement and stacking controls
@@ -41,3 +41,9 @@ Existing shared-edge/Escher design goals remain in PROJECT.md. Constrained edge 
 - Right-click a canvas object, layer row or object row for Forward, Backward, Send to front and Send to back. Cmd/Ctrl+[ and ] step backward/forward; add Shift for back/front. With a layer selected, shortcuts arrange layers. Ordering is shared with SVG rendering/export and each move is undoable.
 - Build/lint and 35 Node tests pass. Browser checks verified square default, hover outline, object and layer drag ordering, cross-layer transfer/undo, context commands and keyboard front command; no console errors/warnings.
 - These additions are on dev/local preview. The current production release remains the neutral-interface release above.
+
+## Repository rename and republish
+
+- User authorized renaming this repository to `AlexBloom/tesselate` and republishing. GitHub’s old `tesselate` URL resolved to `archive-tesselate-grok` before the rename; that archived repository was left untouched.
+- Updated origin, package name and production asset base to `/tesselate/`. Local checkout remains `/Users/alexbloom/Documents/GitHub/tesselate-gpt`; existing browser storage keys are retained for document continuity.
+- This release includes square defaults, hover placement outlines and layer/object stacking controls. New URL deployment verification pending.

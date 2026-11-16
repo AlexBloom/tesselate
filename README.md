@@ -57,7 +57,7 @@ Legacy documents without explicit effect switches infer which effects are active
 
 ## Production
 
-[Open Tesselate](https://alexbloom.github.io/tesselate-gpt/) (redirects to the account’s existing `alexbloom.design` Pages domain). Releases are manual from `main` after a green promotion PR from `dev`: `gh workflow run deploy.yml --ref main`. Production asset base: `/tesselate-gpt/`.
+[Open Tesselate](https://alexbloom.github.io/tesselate/) (redirects to the account’s existing `alexbloom.design` Pages domain). Releases are manual from `main` after a green promotion PR from `dev`: `gh workflow run deploy.yml --ref main`. Production asset base: `/tesselate/`.
 
 ## Arrange objects and layers
 

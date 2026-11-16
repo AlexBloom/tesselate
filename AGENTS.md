@@ -24,11 +24,11 @@ No environment variables or external services are required. Never commit secrets
 
 ## Workflow
 
-Work on `dev` or a short-lived branch from it. Promote to `main` only through a pull request. Never release to production unless the user explicitly asks. Manual GitHub Pages deployment: `gh workflow run deploy.yml --ref main`. Production builds use `/tesselate-gpt/`; localhost dev uses `/`. Keep CI passing, preserve user changes, and update STATUS.md when infrastructure changes.
+Work on `dev` or a short-lived branch from it. Promote to `main` only through a pull request. Never release to production unless the user explicitly asks. Manual GitHub Pages deployment: `gh workflow run deploy.yml --ref main`. Production builds use `/tesselate/`; localhost dev uses `/`. Keep CI passing, preserve user changes, and update STATUS.md when infrastructure changes.
 
 Keep geometry and document commands independent of the UI. Use the same transform engine for preview, export and eventual MCP operations. Do not label arbitrary repeated motifs as guaranteed seamless tessellations.
 
-This is the isolated GPT comparison project. Do not modify ../tesselate or stop its preview.
+The GitHub repository is AlexBloom/tesselate; the local checkout remains in tesselate-gpt. The previous separate app is archived as archive-tesselate-grok.
 
 The document schema is version 3: `layers[]` are containers and each object in `shapes[]` references a `layerId`. Keep migrations from v1/v2 and retain the old browser storage keys as backups. Render/export objects by layer order and then object order. A layer's visibility hides all its objects; locking blocks editing without hiding artwork. Keep shape creation additive into the selected layer.
 
