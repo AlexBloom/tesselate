@@ -14,22 +14,30 @@ pnpm lint
 pnpm test
 ```
 
-Open http://127.0.0.1:5174/. Documents autosave in this browser on this origin. Browser storage is the only document persistence in this first version; export artwork before clearing browser data. Undo history is session-only. Saved single-shape documents are automatically migrated to version 2; the old `tesselate-gpt.document.v1` key is retained as a backup. Version 2 saves shapes and repeat configuration under `tesselate-gpt.document.v2`.
+Open http://127.0.0.1:5174/. Documents autosave in this browser on this origin. Browser storage is the only document persistence in this first version; export artwork before clearing browser data. Undo history is session-only. Saved single-shape documents are automatically migrated to version 3; the old `tesselate-gpt.document.v1` key is retained as a backup. Version 3 saves layers, objects and repeat settings under `tesselate-gpt.document.v3`; both previous storage keys remain as backups.
 
-## Layered pattern editor
+## Objects and layers
 
-- Build a motif from up to 64 shapes. Preset buttons and the polygon pen add to the composition instead of replacing it. Select a shape on the canvas or in Layers; drag its body to move it, or enter its position numerically.
-- Each shape has its own fill, outline, curve softness and visibility. Rename layers, duplicate/delete them, and bring them forward or send them backward. Hidden layers are excluded from repetitions and exports.
-- Switch to Nodes (A), or double-click a shape, to edit its contour. Drag nodes, nudge with arrow keys (Shift = 10 units), or enter X/Y coordinates. Add a node after the selection; remove nodes down to a minimum of three.
-- Use the polygon pen to place points. Close using the first point, Enter, or Finish contour. Escape cancels; Undo removes the last draft point. Curve softness converts the closed contour into cubic Bézier segments with automatic handles.
-- Explore rectangular, half-drop, regular hexagon, or radial layouts. The guides match the actual repeat cells: rectangles, parallelograms, hexagons, or radial sectors. Hexagon mode uses one cell-width control with the correct derived row spacing; the other modes retain independent horizontal/vertical spacing. Motif rotation rotates the composition within lattice cells. Radial mode includes an additive snowflake wedge starter.
-- Toggle the independent geometry guide layer in Layers or the inspector. Guides are excluded from exports.
-- Inspector sections use the shadcn/ui Radix Collapsible component. Collapse individual sections or either whole dock into an icon rail; rail icons reopen their corresponding sections.
-- Toggle Split preview for another view of the same document, with independent pan and zoom. Use the Hand tool or middle-button drag to pan the main canvas; scroll or use the zoom controls to zoom.
-- Choose colors, outlines and six deterministic palettes. No language model, account or backend is involved.
-- Export SVG or PNG with arbitrary aspect ratio, dimensions and pattern scale. SVG contains one reusable vector path, transformed instances and explicit artboard clipping; PNG is rendered from that same SVG. SVG dimensions are limited to 16000 per side, PNG to 8192 per side/32 MP, with bounded instance counts.
+Layers are containers for multiple objects. Add or rename layers, expand their object lists, hide/lock a whole layer, and move an object to another layer using its inspector dropdown. Visibility and stacking are applied first by layer, then by object. Existing drawings migrate into one layer with all their objects and styles preserved.
 
-Keyboard: V = move shapes, A = edit nodes, P = polygon pen, H = pan, ⌘/Ctrl D = duplicate shape, ⌘/Ctrl Z = undo, ⌘/Ctrl Shift Z = redo. Delete removes the selected node in node-edit mode, or the selected shape otherwise.
+Use the **Shape** dropdown for rectangle/square, ellipse/circle, and polygon objects. Set width/height and choose 3–100 polygon sides. New objects go into the selected visible, unlocked layer. Documents support up to 32 layers and 64 objects.
+
+- **Arrow (V):** select and drag objects. Drag the eight bounding-box handles to resize. Hold Shift to preserve proportions; hold Alt to resize from the center. The inspector also provides W/H inputs and a persistent proportion lock.
+- **Point editing:** double-click an object with the arrow, or use Direct Selection (A), to edit its points. Drag points, use arrow keys (Shift = 10 units), or enter X/Y coordinates.
+- **Pen (P):** click empty space to draw a new closed path. Click its first point or press Enter to finish; Escape cancels. On existing contours, click near an edge to insert a point, drag points to adjust them, or Alt-click a point to remove it (minimum three points). Curves still use automatic handles controlled by Curve softness.
+- **Pan (H):** drag the work area. Middle-button drag also pans. Scroll or use zoom controls to zoom; the split preview has independent navigation.
+
+Duplicate an object with ⌘/Ctrl D. Undo with ⌘/Ctrl Z and redo with ⌘/Ctrl Shift Z. Delete removes a selected point in point-edit mode, or an object otherwise. Layer and object operations are undoable.
+
+## Repeat controls
+
+- **Repeat geometry:** grid, half-drop, regular hexagons, or radial sectors. The guide layer shows the corresponding cell geometry; hexagon row spacing derives from cell width.
+- **Tile transforms:** horizontal/vertical reflection, base rotation, and offset inside each cell. Add a rotation increment by column, row, row + column, or alternating cells. Quick values include 0°, 60°, 90°, and 180°. Local offsets turn with the tile, and alternating mirroring is independently available.
+- **Pattern placement:** rotate and translate the whole pattern, including the lattice and guides. Reset all transforms from this panel.
+
+The transform sequence is local reflection → base rotation → local offset → per-cell rotation increment → cell placement → whole-pattern placement. Cell guides exclude artwork-only transforms. Radial sectors use their own sector rotations and reflection pairing.
+
+All visible objects repeat and export using the same evaluated transforms. Export SVG or PNG with custom aspect ratio, dimensions and pattern scale. SVG retains vector paths and reusable instances with explicit crop clipping; PNG is encoded from that SVG. SVG dimensions are limited to 16000 per side, PNG to 8192 per side/32 MP, with bounded instance counts.
 
 ## Current boundaries
 
@@ -37,7 +45,7 @@ These are free motif repetitions, not guaranteed gap-free tessellations. There a
 
 ## Architecture
 
-`src/core/geometry.ts` evaluates paths, affine transforms, conservative viewport culling, document validation and SVG output independently of React. `src/core/history.ts` groups gestures into undoable changes. `src/App.tsx` contains the editor, canvas interaction and browser export adapter. Fourteen Node fixtures test transforms, culling, guide/lattice alignment, layer isolation and history, migration, validation and multi-shape SVG output; CI runs them with lint and the build. The canvas and shared motif rendering live in `src/components/Canvas.tsx`; shadcn Collapsible is in `src/components/ui/collapsible.tsx`.
+`src/core/geometry.ts` evaluates paths, affine transforms, conservative viewport culling, document validation and SVG output independently of React. `src/core/history.ts` groups gestures into undoable changes. `src/App.tsx` contains the editor, canvas interaction and browser export adapter. Twenty-six Node fixtures test transforms, culling, guide/lattice alignment, layer grouping, migration, resize modifiers, primitive limits, point hit testing, history and SVG output; CI runs them with lint and the build. The canvas and shared motif rendering live in `src/components/Canvas.tsx`; shadcn Collapsible is in `src/components/ui/collapsible.tsx`.
 
 Work on `dev`; promote to `main` by pull request. Production releases require explicit user instruction. No hosting or deployment is configured.
 

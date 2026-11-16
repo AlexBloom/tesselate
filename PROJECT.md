@@ -66,3 +66,33 @@ Restarted from the original brief on November 14, 2026. This folder is independe
 ## Layered editing milestone
 
 Implemented additive shapes with per-layer geometry/style/visibility, whole-shape positioning, duplicate/delete/stacking operations, versioned document migration and multi-shape exports. Guides now match each repeat geometry and hex mode uses a regular lattice. Studio panels use shadcn/ui Collapsible, with independent section expansion and dock icon rails. Constrained edge pairing and multiple independently configured artboards remain future milestones.
+
+## Shared-boundary drawing: Escher reference workflow
+
+The user-supplied fish/bird sketch and process note (November 14, 2026) establish a product goal: help an artist discover interlocking figures while preserving their control over the drawing. Treat the note as a design reference, not as verified historical research.
+
+The central interaction is a shared boundary. Moving an edge to shape one creature immediately changes the neighboring creature's complementary outline. Show both consequences under the pointer, with matching colors on linked edges and clear translation/rotation/reflection arrows. Offer a negative-space view so the neighboring figure is as easy to study as the selected one.
+
+### Intended workflow
+
+1. Choose a supported tile construction and see its polygon, symmetry centers and linked edges. Keep the original construction visible as an optional scaffold.
+2. Sketch over the scaffold on a reference layer. The user interprets possible animals or figures; automatic semantic recognition is optional and is not required for the core workflow.
+3. Draw or reshape a boundary segment. Generate its linked counterpart through the construction's transform, including correct endpoint order and Bézier handles. One gesture updates the source, immediate neighbors and full repeat, and produces one undo step.
+4. Inspect positive and negative shapes together. A two-color view, silhouette view and isolated-neighbor view help reveal the emerging figures. Support multiple tile types sharing boundaries as a later extension; the current free shape layers do not establish a partition of the plane.
+5. Validate the construction. Edge correspondence alone does not prove a valid tiling: check endpoint closure, self-intersections, overlaps and gaps using defined tolerances and a sufficient neighbor set. Distinguish valid, invalid and unchecked states. Highlight the implicated region and provide a clear recovery action.
+6. Lock the tile silhouette and add interior artwork (eyes, feathers, scales, etc.) in separate layers, optionally clipped to its tile. Boundary construction, interior detail and repeat styling need separate ownership in the document model.
+7. Branch experiments into a visual sketchbook. Keep the selected drawing and create bounded deterministic variations of edge profiles, proportions, symmetry-compatible placements and coloring. Let users compare/pin/restore candidates. Show fit status for each; do not silently replace the source or claim a machine recognized an animal.
+
+### Next implementation priority
+
+Implement a constrained translation-tile mode first: four directed edge chains, paired opposite edges and explicit vertex constraints. Preserve the existing free-composition mode and saved documents. Establish a shared-edge graph and construction-specific transforms before extending to triangle/hexagon constructions, rotation, reflection or glide reflection. A polygon shape alone does not determine a valid edge-pairing scheme.
+
+Acceptance: pulling a boundary shows the paired edge and adjacent tile change live; positive/negative space can be inspected; undo restores the whole relationship; invalid contours are identified; preview and SVG export use the same evaluated boundary. Do not label a tile seamless until its construction and contour have passed the relevant checks.
+
+## Object/layer and repeat-transform refinement — November 16, 2026
+
+Layers are containers, with multiple independent objects per layer. Version 3 preserves old drawings as objects in one initial layer. New shapes are created through one compact dropdown with rectangle, ellipse and 3–100-sided polygon options. Arrow selection includes eight resize handles, Shift proportion lock, Alt center scaling, and double-click point editing. The pen can add/move/remove points on existing contours as well as draw new objects.
+
+Separate local tile transforms from whole-pattern placement. Reflection, base rotation and local translation define the tile contents; a progressive rotation can vary by column, row, diagonal or alternating cells. Cell placement follows the selected lattice, then whole-pattern rotation/translation moves the lattice and artwork together. This gives explicit 60° hexagon and 90° block rotation cycles without conflating artwork rotation with guide geometry.
+
+The UI avoids repeated object-count/motif slogans. The hierarchy and inspector labels explain ownership directly. Constrained shared-edge construction from the Escher reference remains a subsequent geometry feature; these transforms do not establish seamless boundaries.

@@ -133,5 +133,6 @@ test('guide shape distinguishes rectangular, staggered, hexagon, and radial geom
   assert.ok(paths[3].includes(' A '))
   const radial = { ...initialDocument, repeat: 'radial', angle: 37, mirror: true }
   const copy = instances(radial, viewport)[1]
-  assert.deepEqual(guideMatrix(radial, copy), copy.matrix)
+  assert.deepEqual(guideMatrix(radial, copy), copy.cellMatrix)
+  assert.notDeepEqual(copy.cellMatrix, copy.matrix)
 })

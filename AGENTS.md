@@ -30,4 +30,8 @@ Keep geometry and document commands independent of the UI. Use the same transfor
 
 This is the isolated GPT comparison project. Do not modify ../tesselate or stop its preview.
 
-The current document schema is version 2 (`shapes[]`). Preserve migration from the old single-shape storage key. Shape additions must be additive, and all visible layers repeat/export together in stacking order. Derive guide cells and instance positions from the same lattice basis; hexagon mode is regular and derives vertical pitch from cell width.
+The document schema is version 3: `layers[]` are containers and each object in `shapes[]` references a `layerId`. Keep migrations from v1/v2 and retain the old browser storage keys as backups. Render/export objects by layer order and then object order. A layer's visibility hides all its objects; locking blocks editing without hiding artwork. Keep shape creation additive into the selected layer.
+
+`src/core/objects.ts` owns primitive creation, point hit testing and resize math. The arrow tool resizes objects; Shift locks proportions and Alt resizes from the center. Pen clicks near edges insert points and Alt-click removes them. Keep each gesture as one undo step.
+
+Repeat transforms have separate cell and content matrices. Base content reflection/rotation/offset precede repetition; per-cell rotation increments vary by row/column/diagonal/checkerboard. Whole-pattern placement rotates/translates the lattice and its guides together. Preview, pointer-coordinate inversion and SVG export must evaluate the same transform pipeline. Hexagon pitch derives from cell width.

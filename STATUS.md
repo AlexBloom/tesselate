@@ -1,31 +1,24 @@
 # Current status
 
-Updated November 14, 2026 (America/New_York).
+Updated November 16, 2026 (America/New_York).
 
-## Isolation and infrastructure
+## Project and preview
 
-- Project: `/Users/alexbloom/Documents/GitHub/tesselate-gpt`; Vite + React + TypeScript + pnpm. Work remains on `dev`.
-- Repository: https://github.com/AlexBloom/tesselate-gpt. Nothing deployed; no hosting or domain configured. `main` remains protected.
-- Preview: http://127.0.0.1:5174/. Restart: `pnpm dev --host 127.0.0.1 --port 5174 --strictPort`.
-- Original `../tesselate` and port 5173 were not modified or stopped.
+- Independent project: `/Users/alexbloom/Documents/GitHub/tesselate-gpt`; branch `dev`; repository https://github.com/AlexBloom/tesselate-gpt.
+- Original `../tesselate` and port 5173 were not modified.
+- Preview restarted at http://127.0.0.1:5174/. Command: `pnpm dev --host 127.0.0.1 --port 5174 --strictPort`; retained terminal session 6726. No production deployment or hosting changes.
 
-## Layered editor update
+## Object/layer update
 
-- Version 2 document schema stores up to 64 shapes with independent points, smoothing, name, fill/stroke and visibility. Presets, snowflake wedges and pen contours add shapes without replacing existing work.
-- Added whole-shape drag/nudge/numeric positioning, canvas and layer selection, direct node editing, duplicate/delete and forward/backward stacking. All visible shapes repeat as one composition.
-- Multi-shape culling, grouped history, SVG and PNG exports share the same document/transform engine. Hidden layers are excluded from source/repeats/exports. An empty composition is supported.
-- Added v1 single-shape migration to v2 local storage; original v1 storage is retained as backup.
-- Geometry guide layer uses rectangles for grid, a parallelogram for half-drop, regular hexagons for hex mode and sectors for radial. Hex pitch derives from width, and lattice-cell guides remain independent of motif rotation. The previous generic square/circle overlays were removed.
-- Added official shadcn/ui Radix Collapsible primitive and reusable sections. Both docks collapse to icon rails, and individual sections toggle independently.
-- Updated dependencies and lockfile with `@radix-ui/react-collapsible`. No new environment variables or services.
+- Schema v3 introduces real `layers[]` containers and `shape.layerId` membership. Multiple objects can occupy each layer; visibility, locking, renaming, reordering and deletion apply at the layer level. Objects retain independent geometry/style/visibility and can move between layers.
+- Migrates v1/v2 documents into one initial layer with their objects preserved, including previous grid/radial transform behavior. Saves to a new v3 browser key and retains old keys as backups.
+- Simplified creation to a Shape dropdown: rectangle/square, ellipse/circle, polygon with 3–100 sides and width/height controls.
+- Arrow tool has eight resize handles, Shift proportional resizing, Alt center resizing, inspector W/H and optional proportion lock. Arrow double-click opens point editing. Pen supports contour insertion, point dragging and Alt-click removal, in addition to new paths. Gestures use one undo step.
+- Tile-content controls provide pre-repeat reflection, rotation and offset, with configurable rotation increments by column/row/diagonal/alternating cells and 60°/90° shortcuts. Whole-pattern angle/translation separately moves lattice and guides. Preview, source coordinate inversion and export share these matrices.
+- Removed motif/count slogans from the application.
 
-## Verification
+## Validation
 
-- Production build and lint passed. Fourteen fixtures cover shape isolation, grouped multi-shape history, migration, invalid documents, export stacking/visibility, uniform translation limits and exact hex guide/lattice edges.
-- Browser tests ran in a separate localhost-origin tab to avoid changing the user's live 127.0.0.1 composition. Confirmed additive presets and polygon drawing; body movement and node nudge affect only the selected layer; drag/drawing/duplicate/delete undo; naming, per-layer style, visibility and stacking; synchronized split composition; guide shape switching and visibility; panel/rail collapse and reopening; reload recovery; successful 640×480 PNG encoding.
-- Browser console had no errors or warnings during verification.
-- No production deployment is authorized.
-
-## Remaining milestones
-
-Constrained seamless edge pairing, Boolean paper cuts, SVG import, manual Bézier handles, multiple independently configured artboards, seeded parameter-sweep generation, MCP adapter and macOS package remain pending. Free motif repetition is not claimed to produce a gap-free tessellation.
+- Build, lint and 26 tests pass. Tests cover migrations, multiple objects per layer, visibility/locking and stacking, transfer/deletion with undo, primitive limits, modifier resize math, pen contour hit testing, matrix ordering, culling, guide alignment and SVG consistency.
+- Browser QA ran on localhost origin, preserving the user's 127.0.0.1 composition. Verified grouped objects, transfer between layers, hide/lock behavior, free/proportional handle resize and undo, polygon with 100 points, pen insertion/Alt removal, arrow double-click and point dragging, combined tile transforms, whole-pattern placement, split consistency, PNG encoding and reload recovery. No browser console warnings/errors.
+- Existing Escher/shared-boundary design notes remain in PROJECT.md. Constrained edge pairing, Boolean cuts, SVG import, manual Bézier handles, independent artboards, MCP and macOS packaging remain future work.

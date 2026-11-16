@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from './ui/collapsible'
 export function Icon({ name, size = 18 }: { name: string; size?: number }) {
   const paths: Record<string, string> = {
+    circle: 'M22 12a10 10 0 11-20 0 10 10 0 0120 0', lock: 'M5 10h14v11H5zM8 10V6a4 4 0 018 0v4', unlock: 'M5 10h14v11H5zM8 10V6a4 4 0 018 0', rotate: 'M20 8a9 9 0 10-2 11M20 2v6h-6', flipX: 'M12 2v20M3 6l6 6-6 6zM21 6l-6 6 6 6z', flipY: 'M2 12h20M6 3l6 6 6-6zM6 21l6-6 6 6z',
     select: 'M5 3l14 9-7 1-3 7z', nodes: 'M4 4h16v16H4zM2 2h4v4H2zM18 2h4v4h-4zM18 18h4v4h-4zM2 18h4v4H2z',
     pen: 'M4 20l3-8L17 2l5 5-10 10zM7 12l5 5M4 20l6-2', hand: 'M8 12V5a2 2 0 014 0v6-8a2 2 0 014 0v8-6a2 2 0 014 0v11c0 4-3 6-7 6-3 0-5-1-7-4L3 13a2 2 0 013-2l2 3',
     undo: 'M9 4L4 9l5 5M4 9h10a6 6 0 010 12', redo: 'M15 4l5 5-5 5m5-5H10a6 6 0 000 12',

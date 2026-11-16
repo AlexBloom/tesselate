@@ -2,7 +2,9 @@ export type Point = { x: number; y: number }
 export type Matrix = [number, number, number, number, number, number]
 export type Bounds = { x: number; y: number; width: number; height: number }
 export type RepeatMode = 'grid' | 'brick' | 'hex' | 'radial'
+export type Layer = { id: string; name: string; visible: boolean; locked: boolean }
 export type Shape = {
+  layerId: string
   id: string
   name: string
   points: Point[]
@@ -13,7 +15,17 @@ export type Shape = {
   visible: boolean
 }
 export type PatternDocument = {
-  version: 2
+  version: 3
+  layers: Layer[]
+  flipX: boolean
+  flipY: boolean
+  offsetX: number
+  offsetY: number
+  rotationStep: number
+  stepAxis: 'column' | 'row' | 'diagonal' | 'checker'
+  latticeAngle: number
+  patternX: number
+  patternY: number
   shapes: Shape[]
   repeat: RepeatMode
   spacingX: number
@@ -23,14 +35,15 @@ export type PatternDocument = {
   sectors: number
   background: string
 }
-export type Instance = { id: string; matrix: Matrix; source: boolean }
+export type Instance = { id: string; matrix: Matrix; cellMatrix: Matrix; source: boolean }
 export const initialShape: Shape = {
-  id: 'shape-1', name: 'Botanical',
+  id: 'shape-1', layerId: 'layer-1', name: 'Object 1',
   points: [{ x: 0, y: -79 }, { x: 37, y: -40 }, { x: 78, y: -27 }, { x: 47, y: 9 }, { x: 44, y: 69 }, { x: 0, y: 48 }, { x: -44, y: 69 }, { x: -47, y: 9 }, { x: -78, y: -27 }, { x: -37, y: -40 }],
   smooth: 0.8, fill: '#62794c', stroke: '#34472e', strokeWidth: 0, visible: true,
 }
+export const initialLayer: Layer = { id: 'layer-1', name: 'Layer 1', visible: true, locked: false }
 export const initialDocument: PatternDocument = {
-  version: 2, shapes: [initialShape], repeat: 'brick', spacingX: 185, spacingY: 173,
+  version: 3, layers: [initialLayer], flipX: false, flipY: false, offsetX: 0, offsetY: 0, rotationStep: 0, stepAxis: 'column', latticeAngle: 0, patternX: 0, patternY: 0, shapes: [initialShape], repeat: 'brick', spacingX: 185, spacingY: 173,
   angle: 0, mirror: false, sectors: 8, background: '#f4f2e9',
 }
 
@@ -38,11 +51,27 @@ export function updateShape(doc: PatternDocument, id: string, update: (shape: Sh
   return { ...doc, shapes: doc.shapes.map(shape => shape.id === id ? update(shape) : shape) }
 }
 export function addShape(doc: PatternDocument, shape: Shape): PatternDocument {
-  if (doc.shapes.length >= 64) throw new Error('A motif can contain up to 64 shapes.')
+  if (doc.shapes.length >= 64) throw new Error('A document can contain up to 64 objects.')
+  if (!doc.layers.some(l => l.id === shape.layerId)) throw new Error('Object needs a valid layer.')
   if (doc.shapes.some(s => s.id === shape.id)) throw new Error('Shape IDs must be unique.')
   return { ...doc, shapes: [...doc.shapes, shape] }
 }
 export function removeShape(doc: PatternDocument, id: string): PatternDocument { return { ...doc, shapes: doc.shapes.filter(s => s.id !== id) } }
+export function orderedShapes(doc: PatternDocument): Shape[] { return doc.layers.flatMap(layer => doc.shapes.filter(s => s.layerId === layer.id)) }
+export function visibleShapes(doc: PatternDocument): Shape[] { return doc.layers.filter(l => l.visible).flatMap(layer => doc.shapes.filter(s => s.layerId === layer.id && s.visible)) }
+export function editableShape(doc: PatternDocument, shape: Shape): boolean { const layer = doc.layers.find(l => l.id === shape.layerId); return Boolean(layer?.visible && !layer.locked && shape.visible) }
+export function addLayer(doc: PatternDocument, layer: Layer): PatternDocument {
+  if (doc.layers.length >= 32 || doc.layers.some(l => l.id === layer.id)) throw new Error('Use up to 32 uniquely identified layers.')
+  return { ...doc, layers: [...doc.layers, layer] }
+}
+export function updateLayer(doc: PatternDocument, id: string, update: (layer: Layer) => Layer): PatternDocument { return { ...doc, layers: doc.layers.map(l => l.id === id ? update(l) : l) } }
+export function removeLayer(doc: PatternDocument, id: string): PatternDocument { return doc.layers.length <= 1 ? doc : { ...doc, layers: doc.layers.filter(l => l.id !== id), shapes: doc.shapes.filter(s => s.layerId !== id) } }
+export function moveToLayer(doc: PatternDocument, id: string, layerId: string): PatternDocument {
+  const layer = doc.layers.find(l => l.id === layerId), object = doc.shapes.find(s => s.id === id)
+  if (!object || !layer || layer.locked || doc.layers.find(l=>l.id===object.layerId)?.locked) return doc
+  return { ...doc, shapes: [...doc.shapes.filter(s => s.id !== id), { ...object, layerId }] }
+}
+
 export function shapeCenter(shape: Shape): Point {
   return { x: (Math.min(...shape.points.map(p => p.x)) + Math.max(...shape.points.map(p => p.x))) / 2, y: (Math.min(...shape.points.map(p => p.y)) + Math.max(...shape.points.map(p => p.y))) / 2 }
 }
@@ -61,6 +90,30 @@ export function rotation(degrees: number, x = 0, y = 0, reflect = false): Matrix
   const sign = reflect ? -1 : 1
   return [Math.cos(a) * sign, Math.sin(a) * sign, -Math.sin(a), Math.cos(a), x, y]
 }
+/** multiply(a,b) applies b first, then a. */
+export function multiply(a: Matrix, b: Matrix): Matrix {
+  return [a[0]*b[0]+a[2]*b[1], a[1]*b[0]+a[3]*b[1], a[0]*b[2]+a[2]*b[3], a[1]*b[2]+a[3]*b[3], a[0]*b[4]+a[2]*b[5]+a[4], a[1]*b[4]+a[3]*b[5]+a[5]]
+}
+export function placementMatrix(doc: PatternDocument): Matrix { return rotation(doc.latticeAngle, doc.patternX, doc.patternY) }
+export function tileInstance(doc: PatternDocument, col: number, row: number): Instance {
+  const global = placementMatrix(doc)
+  const phase = doc.stepAxis === 'column' ? col : doc.stepAxis === 'row' ? row : doc.stepAxis === 'diagonal' ? col + row : Math.abs((col + row) % 2)
+  let cellMatrix: Matrix, alternate: boolean
+  if (doc.repeat === 'radial') {
+    alternate = doc.mirror && col % 2 !== 0
+    cellMatrix = multiply(global, rotation((col + (alternate ? 1 : 0)) * 360 / doc.sectors, 0, 0, alternate))
+    alternate = false
+  } else {
+    const step = latticeSteps(doc), shift = doc.repeat !== 'grid' && Math.abs(row % 2) === 1 ? step.x / 2 : 0
+    cellMatrix = multiply(global, [1,0,0,1,col*step.x+shift,row*step.y])
+    alternate = doc.mirror && Math.abs((col + row) % 2) === 1
+  }
+  const flip: Matrix = [(doc.flipX !== alternate) ? -1 : 1,0,0,doc.flipY ? -1 : 1,0,0]
+  const base = multiply([1,0,0,1,doc.offsetX,doc.offsetY], multiply(rotation(doc.angle), flip))
+  const content = multiply(rotation(doc.repeat === 'radial' ? 0 : phase * doc.rotationStep), base)
+  return { id: doc.repeat === 'radial' ? `r${col}` : `${row}:${col}`, cellMatrix, matrix: multiply(cellMatrix, content), source: col === 0 && row === 0 }
+}
+
 export function inversePoint(p: Point, m: Matrix): Point {
   const d = m[0] * m[3] - m[1] * m[2]
   if (Math.abs(d) < 1e-12) throw new Error('Singular transform')
@@ -88,7 +141,7 @@ export function pathData(points: Point[], smooth = 0): string {
 /** Radius includes Bézier control points, so culling is conservative for curved paths. */
 export function motifRadius(doc: PatternDocument): number {
   let radius = 0
-  for (const shape of doc.shapes.filter(s => s.visible)) {
+  for (const shape of visibleShapes(doc)) {
     const points = shape.points, n = points.length
     for (let i = 0; i < n; i++) {
       const p = points[i], prev = points[(i - 1 + n) % n], next = points[(i + 1) % n]
@@ -96,7 +149,7 @@ export function motifRadius(doc: PatternDocument): number {
       for (const q of [p, { x: p.x + offset.x, y: p.y + offset.y }, { x: p.x - offset.x, y: p.y - offset.y }]) radius = Math.max(radius, Math.hypot(q.x, q.y) + shape.strokeWidth / 2)
     }
   }
-  return radius
+  return radius + Math.hypot(doc.offsetX, doc.offsetY)
 }
 
 export function latticeSteps(doc: PatternDocument): Point {
@@ -116,22 +169,22 @@ export function guideGeometry(doc: PatternDocument): { label: string; path: stri
   const shift = doc.repeat === 'brick' ? dx / 2 : 0
   return { label: doc.repeat === 'brick' ? 'Half-drop cell' : 'Grid cell', path: pathData([{ x: -(dx + shift) / 2, y: -dy / 2 }, { x: (dx - shift) / 2, y: -dy / 2 }, { x: (dx + shift) / 2, y: dy / 2 }, { x: -(dx - shift) / 2, y: dy / 2 }]), radius: Math.hypot((dx + shift) / 2, dy / 2) }
 }
-export function guideMatrix(doc: PatternDocument, copy: Instance): Matrix {
-  return doc.repeat === 'radial' ? copy.matrix : [1, 0, 0, 1, copy.matrix[4], copy.matrix[5]]
+export function guideMatrix(_doc: PatternDocument, copy: Instance): Matrix {
+  return copy.cellMatrix
 }
 
 export function instances(doc: PatternDocument, bounds: Bounds, limit = 4000, padding = 0): Instance[] {
-  if (doc.repeat === 'radial') return Array.from({ length: doc.sectors }, (_, i) => ({ id: `r${i}`, matrix: rotation(doc.angle + (i + (doc.mirror && i % 2 === 1 ? 1 : 0)) * 360 / doc.sectors, 0, 0, doc.mirror && i % 2 === 1), source: i === 0 }))
-  const radius = Math.max(motifRadius(doc), padding)
+  if (doc.repeat === 'radial') return Array.from({ length: doc.sectors }, (_, i) => tileInstance(doc, i, 0))
+  const radius = Math.max(motifRadius(doc), padding), global = placementMatrix(doc)
+  const corners = [{x:bounds.x,y:bounds.y},{x:bounds.x+bounds.width,y:bounds.y},{x:bounds.x,y:bounds.y+bounds.height},{x:bounds.x+bounds.width,y:bounds.y+bounds.height}].map(p => inversePoint(p, global))
+  const left = Math.min(...corners.map(p=>p.x)), right = Math.max(...corners.map(p=>p.x)), top = Math.min(...corners.map(p=>p.y)), bottom = Math.max(...corners.map(p=>p.y))
   const { x: dx, y: dy } = latticeSteps(doc)
-  const rows = [Math.ceil((bounds.y - radius) / dy), Math.floor((bounds.y + bounds.height + radius) / dy)]
   const result: Instance[] = []
-  for (let row = rows[0]; row <= rows[1]; row++) {
+  for (let row = Math.ceil((top-radius)/dy); row <= Math.floor((bottom+radius)/dy); row++) {
     const shift = doc.repeat !== 'grid' && Math.abs(row % 2) === 1 ? dx / 2 : 0
-    const min = Math.ceil((bounds.x - radius - shift) / dx), max = Math.floor((bounds.x + bounds.width + radius - shift) / dx)
-    for (let col = min; col <= max; col++) {
+    for (let col = Math.ceil((left-radius-shift)/dx); col <= Math.floor((right+radius-shift)/dx); col++) {
       if (result.length >= limit) throw new Error('Too many repeats. Increase spacing or reduce the output area.')
-      result.push({ id: `${row}:${col}`, matrix: rotation(doc.angle, col * dx + shift, row * dy, doc.mirror && Math.abs((col + row) % 2) === 1), source: row === 0 && col === 0 })
+      result.push(tileInstance(doc, col, row))
     }
   }
   return result
@@ -143,7 +196,7 @@ export function exportSVG(doc: PatternDocument, width: number, height: number, s
   const w = width / scale, h = height / scale
   const bounds = { x: -w / 2, y: -h / 2, width: w, height: h }
   const copies = instances(doc, bounds, 100000)
-  const visible = doc.shapes.filter(s => s.visible)
+  const visible = visibleShapes(doc)
   if (copies.length * visible.length > 100000) throw new Error('Too many shapes to export. Increase spacing or reduce the output area.')
   const paths = visible.map((shape, i) => `<path id="shape-${i}" d="${pathData(shape.points, shape.smooth)}" fill="${shape.fill}" stroke="${shape.stroke}" stroke-width="${shape.strokeWidth}" stroke-linejoin="round"/>`).join('')
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="${-w / 2} ${-h / 2} ${w} ${h}"><title>Tesselate pattern</title><defs><clipPath id="artboard"><rect x="${-w / 2}" y="${-h / 2}" width="${w}" height="${h}"/></clipPath><g id="motif">${paths}</g></defs><rect x="${-w / 2}" y="${-h / 2}" width="${w}" height="${h}" fill="${doc.background}"/><g clip-path="url(#artboard)">${copies.map(copy => `<use href="#motif" transform="${matrixText(copy.matrix)}"/>`).join('')}</g></svg>`
@@ -154,20 +207,30 @@ const inRange = (n: unknown, min: number, max: number) => typeof n === 'number' 
 export function validDocument(value: unknown): value is PatternDocument {
   if (!value || typeof value !== 'object') return false
   const d = value as PatternDocument
-  return d.version === 2 && Array.isArray(d.shapes) && d.shapes.length <= 64
+  return d.version === 3 && Array.isArray(d.layers) && d.layers.length >= 1 && d.layers.length <= 32
+    && new Set(d.layers.map(l => l?.id)).size === d.layers.length
+    && d.layers.every(l => l && typeof l.id === 'string' && l.id.length > 0 && l.id.length <= 100 && typeof l.name === 'string' && l.name.length <= 80 && typeof l.visible === 'boolean' && typeof l.locked === 'boolean')
+    && ['flipX','flipY'].every(k => typeof d[k as 'flipX'] === 'boolean')
+    && [d.offsetX,d.offsetY].every(n => inRange(n,-500,500))
+    && [d.patternX,d.patternY].every(n => inRange(n,-1000,1000))
+    && inRange(d.latticeAngle,-180,180) && inRange(d.rotationStep,-360,360) && ['column','row','diagonal','checker'].includes(d.stepAxis)
+    && Array.isArray(d.shapes) && d.shapes.length <= 64
     && new Set(d.shapes.map(s => s?.id)).size === d.shapes.length
-    && d.shapes.every(s => s && typeof s.id === 'string' && s.id.length > 0 && s.id.length <= 100 && typeof s.name === 'string' && s.name.length <= 80 && typeof s.visible === 'boolean'
+    && d.shapes.every(s => s && d.layers.some(l => l.id === s.layerId) && typeof s.id === 'string' && s.id.length > 0 && s.id.length <= 100 && typeof s.name === 'string' && s.name.length <= 80 && typeof s.visible === 'boolean'
       && Array.isArray(s.points) && s.points.length >= 3 && s.points.length <= 300 && s.points.every(p => p && inRange(p.x, -2000, 2000) && inRange(p.y, -2000, 2000))
       && color(s.fill) && color(s.stroke) && inRange(s.smooth, 0, 1) && inRange(s.strokeWidth, 0, 8))
     && ['grid', 'brick', 'hex', 'radial'].includes(d.repeat) && color(d.background) && typeof d.mirror === 'boolean'
     && inRange(d.spacingX, 60, 400) && inRange(d.spacingY, 60, 400) && inRange(d.angle, -180, 180) && inRange(d.sectors, 2, 24) && Number.isInteger(d.sectors)
 }
-/** Upgrade v1 without changing its shape geometry or appearance. The original storage key is retained as a backup. */
+/** Preserve previous storage keys as backups; migrate old objects into a single container layer. */
 export function migrateDocument(value: unknown): PatternDocument | null {
   if (validDocument(value)) return value
   if (!value || typeof value !== 'object') return null
   const old = value as Record<string, unknown>
-  if (!Array.isArray(old.points)) return null
-  const migrated = { version: 2, shapes: [{ id: 'shape-1', name: 'Motif 01', points: old.points, smooth: old.smooth, fill: old.fill, stroke: old.stroke, strokeWidth: old.strokeWidth, visible: true }], repeat: old.repeat, spacingX: old.spacingX, spacingY: old.spacingY, angle: old.angle, mirror: old.mirror, sectors: old.sectors, background: old.background }
+  let shapes: Shape[]
+  if (old.version === 2 && Array.isArray(old.shapes)) shapes = old.shapes.map(s => ({ ...s, layerId: initialLayer.id }))
+  else if (Array.isArray(old.points)) shapes = [{ id: 'shape-1', layerId: initialLayer.id, name: 'Object 1', points: old.points, smooth: old.smooth, fill: old.fill, stroke: old.stroke, strokeWidth: old.strokeWidth, visible: true }] as Shape[]
+  else return null
+  const migrated = { ...initialDocument, repeat: old.repeat, spacingX: old.spacingX, spacingY: old.spacingY, angle: old.repeat === 'radial' ? 0 : old.angle, latticeAngle: old.repeat === 'radial' ? old.angle : 0, mirror: old.mirror, sectors: old.sectors, background: old.background, shapes }
   return validDocument(migrated) ? migrated : null
 }
