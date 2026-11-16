@@ -14,7 +14,10 @@ export type Shape = {
   strokeWidth: number
   visible: boolean
 }
+export type TileOptions = { enabled: boolean; rotation: boolean; mirror: boolean; offset: boolean }
 export type PatternDocument = {
+  title?: string
+  tileOptions?: TileOptions
   version: 3
   layers: Layer[]
   flipX: boolean
@@ -95,22 +98,32 @@ export function multiply(a: Matrix, b: Matrix): Matrix {
   return [a[0]*b[0]+a[2]*b[1], a[1]*b[0]+a[3]*b[1], a[0]*b[2]+a[2]*b[3], a[1]*b[2]+a[3]*b[3], a[0]*b[4]+a[2]*b[5]+a[4], a[1]*b[4]+a[3]*b[5]+a[5]]
 }
 export function placementMatrix(doc: PatternDocument): Matrix { return rotation(doc.latticeAngle, doc.patternX, doc.patternY) }
+export function tileOptions(doc: PatternDocument): TileOptions {
+  if(doc.tileOptions)return doc.tileOptions
+  const rotation=doc.angle!==0||doc.rotationStep!==0,mirror=doc.flipX||doc.flipY||doc.mirror,offset=doc.offsetX!==0||doc.offsetY!==0
+  return {enabled:rotation||mirror||offset,rotation,mirror,offset}
+}
+export function effectiveTile(doc: PatternDocument) {
+  const options=tileOptions(doc), rotation=options.enabled&&options.rotation,mirror=options.enabled&&options.mirror,offset=options.enabled&&options.offset
+  return {angle:rotation?doc.angle:0,rotationStep:rotation?doc.rotationStep:0,flipX:mirror&&doc.flipX,flipY:mirror&&doc.flipY,mirror:mirror&&doc.mirror,offsetX:offset?doc.offsetX:0,offsetY:offset?doc.offsetY:0}
+}
+
 export function tileInstance(doc: PatternDocument, col: number, row: number): Instance {
-  const global = placementMatrix(doc)
+  const global = placementMatrix(doc), contentSettings=effectiveTile(doc)
   const phase = doc.stepAxis === 'column' ? col : doc.stepAxis === 'row' ? row : doc.stepAxis === 'diagonal' ? col + row : Math.abs((col + row) % 2)
   let cellMatrix: Matrix, alternate: boolean
   if (doc.repeat === 'radial') {
-    alternate = doc.mirror && col % 2 !== 0
+    alternate = contentSettings.mirror && col % 2 !== 0
     cellMatrix = multiply(global, rotation((col + (alternate ? 1 : 0)) * 360 / doc.sectors, 0, 0, alternate))
     alternate = false
   } else {
     const step = latticeSteps(doc), shift = doc.repeat !== 'grid' && Math.abs(row % 2) === 1 ? step.x / 2 : 0
     cellMatrix = multiply(global, [1,0,0,1,col*step.x+shift,row*step.y])
-    alternate = doc.mirror && Math.abs((col + row) % 2) === 1
+    alternate = contentSettings.mirror && Math.abs((col + row) % 2) === 1
   }
-  const flip: Matrix = [(doc.flipX !== alternate) ? -1 : 1,0,0,doc.flipY ? -1 : 1,0,0]
-  const base = multiply([1,0,0,1,doc.offsetX,doc.offsetY], multiply(rotation(doc.angle), flip))
-  const content = multiply(rotation(doc.repeat === 'radial' ? 0 : phase * doc.rotationStep), base)
+  const flip: Matrix = [(contentSettings.flipX !== alternate) ? -1 : 1,0,0,contentSettings.flipY ? -1 : 1,0,0]
+  const base = multiply([1,0,0,1,contentSettings.offsetX,contentSettings.offsetY], multiply(rotation(contentSettings.angle), flip))
+  const content = multiply(rotation(doc.repeat === 'radial' ? 0 : phase * contentSettings.rotationStep), base)
   return { id: doc.repeat === 'radial' ? `r${col}` : `${row}:${col}`, cellMatrix, matrix: multiply(cellMatrix, content), source: col === 0 && row === 0 }
 }
 
@@ -149,7 +162,8 @@ export function motifRadius(doc: PatternDocument): number {
       for (const q of [p, { x: p.x + offset.x, y: p.y + offset.y }, { x: p.x - offset.x, y: p.y - offset.y }]) radius = Math.max(radius, Math.hypot(q.x, q.y) + shape.strokeWidth / 2)
     }
   }
-  return radius + Math.hypot(doc.offsetX, doc.offsetY)
+  const content=effectiveTile(doc)
+  return radius + Math.hypot(content.offsetX, content.offsetY)
 }
 
 export function latticeSteps(doc: PatternDocument): Point {
@@ -207,7 +221,9 @@ const inRange = (n: unknown, min: number, max: number) => typeof n === 'number' 
 export function validDocument(value: unknown): value is PatternDocument {
   if (!value || typeof value !== 'object') return false
   const d = value as PatternDocument
-  return d.version === 3 && Array.isArray(d.layers) && d.layers.length >= 1 && d.layers.length <= 32
+  return d.version === 3 && (d.title===undefined||(typeof d.title==='string'&&d.title.length<=120))
+    && (d.tileOptions===undefined||(d.tileOptions!==null&&typeof d.tileOptions==='object'&&['enabled','rotation','mirror','offset'].every(k=>typeof d.tileOptions![k as keyof TileOptions]==='boolean')))
+    && Array.isArray(d.layers) && d.layers.length >= 1 && d.layers.length <= 32
     && new Set(d.layers.map(l => l?.id)).size === d.layers.length
     && d.layers.every(l => l && typeof l.id === 'string' && l.id.length > 0 && l.id.length <= 100 && typeof l.name === 'string' && l.name.length <= 80 && typeof l.visible === 'boolean' && typeof l.locked === 'boolean')
     && ['flipX','flipY'].every(k => typeof d[k as 'flipX'] === 'boolean')

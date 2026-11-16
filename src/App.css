@@ -229,3 +229,48 @@ input[type=color]::-webkit-color-swatch { border: 0; border-radius: 2px; }
 .reset-transforms { margin-top: 17px; }
 .resize-handle { pointer-events: all; }
 .is-split .canvas-help { bottom: 65px; right: 18px; line-height: 1.4; }
+/* Workspace roles: objects left, pattern right. */
+.workspace > .left-panel .studio-brand-header, .workspace > .right-panel > .dock-header { height: 60px; min-height: 60px; }
+.studio-brand-header .brand { font-size: 19px; gap: 6px; letter-spacing: -.9px; }
+.studio-brand-header .brand-mark { font-size: 27px; }
+.dock-collapsed .studio-brand-header { height: 96px !important; min-height: 96px !important; flex-direction: column; gap: 3px; }
+.canvas-toolbar { height: 60px; min-height: 60px; }
+.history-actions { flex: 1; min-width: 0; }
+.canvas-actions { flex-shrink: 0; }
+.pattern-title-area { min-width: 0; flex: 1; }
+.pattern-title-area > input { display: block; min-width: 0; width: 100%; border: 0; border-radius: 3px; background: transparent; color: #43513a; font-size: 12px; font-weight: 500; padding: 1px 3px; }
+.pattern-title-area .save-status { font-size: 8px; margin: 3px 3px 0; }
+.export-dock { min-height: 59px; height: 59px; flex-shrink: 0; border-top: 1px solid #dfe6d4; display: flex; align-items: center; justify-content: center; padding: 10px 16px; background: #fafcf5; }
+.export-dock > button { width: 100%; }
+.dock-collapsed .export-dock { padding: 9px 5px; }
+.dock-collapsed .export-dock > button { padding: 9px 5px; }
+.inline-layer-name { flex: 1; min-width: 0; width: 40px; border: 1px solid #b5c99a; border-radius: 3px; padding: 4px; background: #fcfff8; color: #536c3e; font-size: 10px; }
+.compact-caption { margin-top: 0; }
+.object-color { display: flex; align-items: center; gap: 9px; color: #758664; font-size: 10px; }
+.object-color small { display: block; font-size: 9px; color: #98a58b; margin-top: 4px; }
+.object-palettes { gap: 4px; margin-top: 18px; }
+.object-palettes button { flex: 1; min-width: 0; width: auto; padding: 0; height: 27px; }
+.pattern-background { display: flex; align-items: center; justify-content: space-between; margin-top: 18px; font-size: 10px; color: #7c8e6b; }
+.effect-toggle { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 11px; color: #6a8056; cursor: pointer; }
+.effect-toggle > span { display: flex; align-items: center; gap: 8px; }
+.effect-toggle > input { appearance: none; width: 28px; min-width: 28px; height: 16px; background: #d7e0ce; border: 1px solid #c8d5bb; border-radius: 12px; cursor: pointer; margin: 0; }
+.effect-toggle > input::before { content: ''; display: block; width: 10px; height: 10px; margin: 2px; background: #fff; border-radius: 50%; transition: transform .12s; }
+.effect-toggle > input:checked { background: #7c965f; border-color: #7c965f; }
+.effect-toggle > input:checked::before { transform: translateX(12px); }
+.master-effect { padding: 2px 0 5px; font-size: 10px; }
+.tile-effects { margin-top: 16px; border-top: 1px solid #e0e8d5; }
+.effect-group { border-bottom: 1px solid #e4ebdb; padding: 15px 0; }
+.effect-group:last-child { border-bottom: 0; padding-bottom: 0; }
+.effect-options { padding-top: 4px; }
+.effect-options > .coordinate-inputs { margin-top: 14px; }
+.effect-options .flip-actions { margin-top: 12px; }
+.effect-options .check-row { margin-top: 15px; }
+.tool-shape .drawing-canvas, .tool-shape .source-shape { cursor: crosshair; }
+.polygon-placement { position: fixed; z-index: 8; width: 215px; padding: 14px; background: #fafdf5; border: 1px solid #bdcfaa; border-radius: 7px; box-shadow: 0 10px 35px #2c43242e; }
+.placement-heading { display: flex; align-items: center; justify-content: space-between; font-size: 12px; color: #607b46; }
+.placement-heading .icon-button { width: 23px; height: 23px; }
+.polygon-placement > svg { width: 65px; height: 65px; display: block; margin: 3px auto 10px; fill: #859d67; }
+.polygon-placement .sides-field { font-size: 11px; margin: 9px 0 14px; }
+.polygon-placement > .primary { width: 100%; padding: 8px; }
+@media (max-width: 700px) { .workspace > .left-panel { height: 72dvh; } .workspace > .studio { height: 72dvh; } .pattern-title-area > input { font-size: 10px; } .pattern-title-area .save-status { font-size: 7px; } .canvas-toolbar { gap: 3px; } }
+.right-panel > .export-dock { margin-top: auto; }

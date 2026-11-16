@@ -5,17 +5,17 @@ import type { PatternDocument, Point, Shape } from '../core/geometry'
 import { objectBounds, resizeObject, closestSegment } from '../core/objects'
 import type { Action } from '../core/history'
 import { Icon } from './controls'
-export type Tool = 'select' | 'nodes' | 'pen' | 'hand'
+export type Tool = 'select' | 'nodes' | 'pen' | 'hand' | 'shape'
 export type View = { x: number; y: number; zoom: number }
 const clamp = (n: number, min: number, max: number) => Math.min(max, Math.max(min, n))
 export function MotifPaths({ doc }: { doc: PatternDocument }) {
   return <>{visibleShapes(doc).map(shape => <path key={shape.id} data-shape-id={shape.id} d={pathData(shape.points, shape.smooth)} fill={shape.fill} stroke={shape.stroke} strokeWidth={shape.strokeWidth} strokeLinejoin="round" />)}</>
 }
 type CanvasProps = {
-  doc: PatternDocument; view: View; setView: (v: View | ((v: View) => View)) => void; focus: boolean; guides: boolean; tool: Tool; proportional: boolean; canDraw: boolean; activeId: string | null; selected: number | null; onSelect: (id: string | null, node?: number | null) => void; onEditNodes: () => void;
+  doc: PatternDocument; view: View; setView: (v: View | ((v: View) => View)) => void; focus: boolean; guides: boolean; tool: Tool; proportional: boolean; canDraw: boolean; onPlace:(point:Point,screen:Point)=>void; activeId: string | null; selected: number | null; onSelect: (id: string | null, node?: number | null) => void; onEditNodes: () => void;
   draft: Point[]; onDraftPoint: (p: Point) => void; finishDraft: () => void; dispatch: Dispatch<Action>
 }
-export function Canvas({ doc, view, setView, focus, guides, tool, proportional, canDraw, activeId, selected, onSelect, onEditNodes, draft, onDraftPoint, finishDraft, dispatch }: CanvasProps) {
+export function Canvas({ doc, view, setView, focus, guides, tool, proportional, canDraw, onPlace, activeId, selected, onSelect, onEditNodes, draft, onDraftPoint, finishDraft, dispatch }: CanvasProps) {
   const container = useRef<HTMLDivElement>(null), svgRef = useRef<SVGSVGElement>(null)
   const [size, setSize] = useState({ width: 800, height: 650 })
   const drag = useRef<{ kind: 'node'; id: string; index: number } | { kind: 'shape'; id: string; original: Shape; start: Point } | { kind: 'resize'; id: string; original: Shape; handle: Point } | { kind: 'pan'; x: number; y: number; view: View } | null>(null)
@@ -44,7 +44,7 @@ export function Canvas({ doc, view, setView, focus, guides, tool, proportional, 
     if (event.button !== 0 && event.button !== 1) return
     if (!focus || tool === 'hand' || event.button === 1) {
       event.preventDefault(); drag.current = { kind: 'pan', x: event.clientX, y: event.clientY, view }; event.currentTarget.setPointerCapture(event.pointerId)
-    } else if (tool === 'pen' && canDraw) { const p = point(event); onDraftPoint({ x: clamp(p.x, -2000, 2000), y: clamp(p.y, -2000, 2000) }) }
+    } else if(tool==='shape'&&canDraw){event.preventDefault();const p=point(event);onPlace({x:clamp(p.x,-2000,2000),y:clamp(p.y,-2000,2000)},{x:event.clientX,y:event.clientY})} else if (tool === 'pen' && canDraw) { const p = point(event); onDraftPoint({ x: clamp(p.x, -2000, 2000), y: clamp(p.y, -2000, 2000) }) }
     else onSelect(null)
   }
   function move(event: ReactPointerEvent<SVGSVGElement>) {
@@ -85,8 +85,8 @@ export function Canvas({ doc, view, setView, focus, guides, tool, proportional, 
 
       </g>}
       {focus && <g transform={sourceTransform} data-layer="source-shapes">
-        {visible.map(shape => <path key={shape.id} data-source-shape={shape.id} d={pathData(shape.points, shape.smooth)} fill={shape.fill} stroke={shape.stroke} strokeWidth={shape.strokeWidth} strokeLinejoin="round" style={{pointerEvents:editableShape(doc,shape)?'auto':'none'}} className={tool === 'hand' || tool === 'pen' ? '' : 'source-shape'} role="button" tabIndex={tool === 'pen' || !editableShape(doc,shape) ? -1 : 0} aria-label={`Select ${shape.name}`} onFocus={() => { if (!drag.current) onSelect(shape.id) }} onDoubleClick={() => { if (tool !== 'hand' && tool !== 'pen') { onSelect(shape.id); onEditNodes() } }} onKeyDown={event => { if (event.key === 'Enter') { event.stopPropagation(); onSelect(shape.id); onEditNodes() } }} onPointerDown={event => {
-          if (event.button !== 0 || tool === 'hand' || draft.length || !editableShape(doc,shape)) return
+        {visible.map(shape => <path key={shape.id} data-source-shape={shape.id} d={pathData(shape.points, shape.smooth)} fill={shape.fill} stroke={shape.stroke} strokeWidth={shape.strokeWidth} strokeLinejoin="round" style={{pointerEvents:editableShape(doc,shape)?'auto':'none'}} className={tool === 'hand' || tool === 'pen' ? '' : 'source-shape'} role="button" tabIndex={tool === 'pen' || tool==='shape' || !editableShape(doc,shape) ? -1 : 0} aria-label={`Select ${shape.name}`} onFocus={() => { if (!drag.current&&tool!=='shape') onSelect(shape.id) }} onDoubleClick={() => { if (tool !== 'hand' && tool !== 'pen' && tool!=='shape') { onSelect(shape.id); onEditNodes() } }} onKeyDown={event => { if (event.key === 'Enter') { event.stopPropagation(); onSelect(shape.id); onEditNodes() } }} onPointerDown={event => {
+          if (event.button !== 0 || tool === 'hand' || tool==='shape' || draft.length || !editableShape(doc,shape)) return
           if(tool==='pen'){
             const p=point(event),near=closestSegment(shape,p)
             if(near.distance>8/view.zoom || shape.points.length>=300)return
@@ -104,7 +104,7 @@ export function Canvas({ doc, view, setView, focus, guides, tool, proportional, 
         {draft.length > 0 && <g data-layer="draft"><path d={pathData(draft)} fill={doc.shapes.find(s => s.id === 'draft')?.fill ?? '#62794c'} fillOpacity=".8" stroke="#405737" strokeWidth={1 / view.zoom} pointerEvents="none" />{draft.map((p, i) => <circle key={i} cx={p.x} cy={p.y} r={(i === 0 ? 6 : 3) / view.zoom} fill={i === 0 ? '#fff' : '#344d2b'} stroke="#344d2b" strokeWidth={1 / view.zoom} className="node" role={i === 0 ? 'button' : undefined} tabIndex={i === 0 ? 0 : undefined} aria-label={i === 0 ? 'Close contour' : undefined} onKeyDown={event => { if (i === 0 && event.key === 'Enter') { event.stopPropagation(); finishDraft() } }} onPointerDown={event => { if (i === 0) { event.stopPropagation(); finishDraft() } }} />)}</g>}
       </g>}
     </svg>
-    {focus && !draft.length && <div className="canvas-help"><span className="help-key">{({ select: 'V', nodes: 'A', pen: 'P', hand: 'H' })[tool]}</span>{tool === 'nodes' ? 'Drag a node to refine a shape.' : tool === 'select' ? 'Drag to move · Shift-resize keeps proportions.' : tool === 'pen' ? 'Click edges to add points · Alt-click points to remove.' : 'Drag to explore the plane.'}</div>}
+    {focus && !draft.length && <div className="canvas-help"><span className="help-key">{({ select: 'V', nodes: 'A', pen: 'P', hand: 'H', shape:'+' })[tool]}</span>{tool==='shape'?'Click to place a shape.':tool === 'nodes' ? 'Drag a node to refine a shape.' : tool === 'select' ? 'Drag to move · Shift-resize keeps proportions.' : tool === 'pen' ? 'Click edges to add points · Alt-click points to remove.' : 'Drag to explore the plane.'}</div>}
     {warning && <div className="canvas-warning" role="status">{warning}</div>}
     <div className="zoom-controls"><button aria-label={focus ? 'Zoom out' : 'Preview zoom out'} onClick={() => zoom(1 / 1.2)}><Icon name="minus" size={14} /></button><span>{Math.round(view.zoom * 100)}%</span><button aria-label={focus ? 'Zoom in' : 'Preview zoom in'} onClick={() => zoom(1.2)}><Icon name="plus" size={14} /></button><span className="zoom-divider" /><button aria-label={focus ? 'Reset canvas view' : 'Reset preview view'} title="Reset view" onClick={() => setView({ x: 0, y: 0, zoom: focus ? 1.25 : 0.65 })}><Icon name="fit" size={14} /></button></div>
   </div>

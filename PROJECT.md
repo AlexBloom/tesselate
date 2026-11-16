@@ -96,3 +96,11 @@ Layers are containers, with multiple independent objects per layer. Version 3 pr
 Separate local tile transforms from whole-pattern placement. Reflection, base rotation and local translation define the tile contents; a progressive rotation can vary by column, row, diagonal or alternating cells. Cell placement follows the selected lattice, then whole-pattern rotation/translation moves the lattice and artwork together. This gives explicit 60° hexagon and 90° block rotation cycles without conflating artwork rotation with guide geometry.
 
 The UI avoids repeated object-count/motif slogans. The hierarchy and inspector labels explain ownership directly. Constrained shared-edge construction from the Escher reference remains a subsequent geometry feature; these transforms do not establish seamless boundaries.
+
+## Focused workspace and placement refinement
+
+The left menu owns the logo and all object-related controls; repeat geometry, pattern background, optional tile effects and pattern placement live on the right. Pattern title sits in the canvas header and export stays at the lower right. Layer names are edited directly inline.
+
+The shape dropdown only chooses a primitive tool. A canvas click supplies the placement position. Rectangle/ellipse tools place a default object; polygon placement asks for sides at the clicked location before committing. Dimensions live in a separate object Transform section and remain accessible during point editing.
+
+Tile effects are opt-in, with a master enable switch and separate Rotation, Mirror and Offset switches. Revealed controls belong to their enabled category; disabling bypasses the effect while preserving values. Legacy documents infer active switches from prior settings so existing artwork does not change. These optional fields and the pattern title remain backward-compatible with schema v3.
