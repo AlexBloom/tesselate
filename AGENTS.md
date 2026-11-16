@@ -24,7 +24,7 @@ No environment variables or external services are required. Never commit secrets
 
 ## Workflow
 
-Work on `dev` or a short-lived branch from it. Promote to `main` only through a pull request. Never release to production unless the user explicitly asks. No deploy command is configured. Keep CI passing, preserve user changes, and update STATUS.md when infrastructure changes.
+Work on `dev` or a short-lived branch from it. Promote to `main` only through a pull request. Never release to production unless the user explicitly asks. Manual GitHub Pages deployment: `gh workflow run deploy.yml --ref main`. Production builds use `/tesselate-gpt/`; localhost dev uses `/`. Keep CI passing, preserve user changes, and update STATUS.md when infrastructure changes.
 
 Keep geometry and document commands independent of the UI. Use the same transform engine for preview, export and eventual MCP operations. Do not label arbitrary repeated motifs as guaranteed seamless tessellations.
 

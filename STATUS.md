@@ -6,7 +6,7 @@ Updated November 16, 2026 (America/New_York).
 
 - Independent project: `/Users/alexbloom/Documents/GitHub/tesselate-gpt`; branch `dev`; repository https://github.com/AlexBloom/tesselate-gpt.
 - Original `../tesselate` and port 5173 remain untouched.
-- Preview: http://127.0.0.1:5174/. Restart with `pnpm dev --host 127.0.0.1 --port 5174 --strictPort`; retained session 6726. No production deployment.
+- Preview opened on a new port: http://127.0.0.1:5175/. Restart with `pnpm dev --host 127.0.0.1 --port 5175 --strictPort`; retained session 11889. Previous port 5174 was left running. No production deployment.
 
 ## Focused workspace update
 
@@ -25,3 +25,9 @@ Updated November 16, 2026 (America/New_York).
 ## Future work
 
 Existing shared-edge/Escher design goals remain in PROJECT.md. Constrained edge pairing, Boolean cuts, SVG import, manual Bézier handles, independent artboards, MCP and macOS packaging remain pending. No seamless-tiling guarantee is made for free compositions.
+
+## Neutral interface and production release
+
+- Neutral grayscale interface with stronger control labels, borders, active states and selection handles. Artwork palettes and saved drawing colors are preserved.
+- Manual Pages workflow added with lint, geometry tests and production build. Production assets use `/tesselate-gpt/`; local development retains `/`.
+- Release authorized November 16, 2026. Deployment verification pending.
