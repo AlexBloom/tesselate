@@ -46,4 +46,6 @@ Existing shared-edge/Escher design goals remain in PROJECT.md. Constrained edge 
 
 - User authorized renaming this repository to `AlexBloom/tesselate` and republishing. GitHub’s old `tesselate` URL resolved to `archive-tesselate-grok` before the rename; that archived repository was left untouched.
 - Updated origin, package name and production asset base to `/tesselate/`. Local checkout remains `/Users/alexbloom/Documents/GitHub/tesselate-gpt`; existing browser storage keys are retained for document continuity.
-- This release includes square defaults, hover placement outlines and layer/object stacking controls. New URL deployment verification pending.
+- This release includes square defaults, hover placement outlines and layer/object stacking controls. Published through PR #6; deployment https://github.com/AlexBloom/tesselate/actions/runs/43972276417 passed.
+- Live: https://alexbloom.github.io/tesselate/ redirects to https://alexbloom.design/tesselate/. Verified HTTP 200, expected page title, and byte-for-byte matches for both JS and CSS against the release build. Build/lint and all 35 tests passed locally and in CI.
+- Fresh browser verification was unavailable because its old working directory was removed. Auto-review rejected recreating that directory; no archived project files were changed.
