@@ -1,4 +1,4 @@
-# Tesselate GPT
+# Tesselate
 
 A vector pattern studio for rapidly exploring and refining motifs through live geometric repetition.
 
@@ -17,7 +17,7 @@ Deterministic generation must work without language models or usage credits. Let
 - SVG for initial editable vectors and preview. Consider a separate accelerated preview renderer only after profiling.
 - Browser-local documents initially. No account or backend required for core editing.
 - Investigate Tauri for macOS packaging after the web interaction is validated.
-- GitHub: independent public repository AlexBloom/tesselate-gpt. GitHub Pages production release authorized November 16, 2026. No custom domain; deployment is manual from main.
+- GitHub: independent public repository AlexBloom/tesselate. GitHub Pages production release authorized November 16, 2026. No custom domain; deployment is manual from main.
 
 ## Geometry and interaction model
 

@@ -54,3 +54,13 @@ Work on `dev`; promote to `main` by pull request. Production releases require ex
 The Collapsible component uses the [official shadcn/ui Radix implementation](https://ui.shadcn.com/r/styles/new-york/collapsible.json), styled for this studio without introducing a separate CSS framework.
 
 Legacy documents without explicit effect switches infer which effects are active, preserving existing artwork. Optional effect flags and the pattern title are backward-compatible fields in schema v3.
+
+## Production
+
+[Open Tesselate](https://alexbloom.github.io/tesselate/) (redirects to the account’s existing `alexbloom.design` Pages domain). Releases are manual from `main` after a green promotion PR from `dev`: `gh workflow run deploy.yml --ref main`. Production asset base: `/tesselate/`.
+
+## Arrange objects and layers
+
+New documents start with a square. Select a primitive and hover over the canvas for a placement outline; click to place it. Existing drawings retain their shapes.
+
+Drag the dotted grips in Layers to reorder layers or objects. Top rows paint in front; the small position numbers increase toward the front. Drag objects onto another unlocked layer to move them there. Right-click objects (in the canvas or panel) or layer rows for Forward, Backward, Send to front, and Send to back. Use Cmd/Ctrl+] or [ to step forward/backward, and add Shift to send to front/back. Select a layer name to use these shortcuts for that layer. All stacking changes support undo.

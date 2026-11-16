@@ -274,3 +274,16 @@ input[type=color]::-webkit-color-swatch { border: 0; border-radius: 2px; }
 .polygon-placement > .primary { width: 100%; padding: 8px; }
 @media (max-width: 700px) { .workspace > .left-panel { height: 72dvh; } .workspace > .studio { height: 72dvh; } .pattern-title-area > input { font-size: 10px; } .pattern-title-area .save-status { font-size: 7px; } .canvas-toolbar { gap: 3px; } }
 .right-panel > .export-dock { margin-top: auto; }
+
+/* Stacking follows the panel's front-to-back visual order. */
+.layer-container-row[draggable=true], .layer-row[draggable=true] { cursor: grab; }
+.layer-container-row[data-drop=above], .layer-row[data-drop=above] { box-shadow: 0 -2px 0 #414141; }
+.layer-container-row[data-drop=below], .layer-row[data-drop=below] { box-shadow: 0 2px 0 #414141; }
+.layer-select .stack-index { margin: 0 0 0 auto; font-size: 9px; color: #666; padding: 0 3px; font-variant-numeric: tabular-nums; }
+.stack-menu { position: fixed; z-index: 30; width: 222px; padding: 5px; border: 1px solid #c7c7c7; border-radius: 6px; background: #fcfcfc; box-shadow: 0 8px 30px #0002; }
+.stack-menu button { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; padding: 10px 7px; border: 0; background: transparent; text-align: left; font-size: 11px; border-radius: 3px; }
+.stack-menu button:hover:not(:disabled), .stack-menu button:focus-visible { background: #eee; }
+.stack-menu small { font-size: 9px; color: #666; }
+
+.stack-grip { flex-shrink: 0; width: 12px; padding: 0; border: 0; background: transparent; color: #808080; cursor: grab; font-size: 13px; touch-action: none; }
+.stack-grip:active { cursor: grabbing; }

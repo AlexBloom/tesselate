@@ -6,6 +6,9 @@ import { Canvas, MotifPaths } from './components/Canvas'
 import type { Tool, View } from './components/Canvas'
 import { primitivePoints } from './core/objects'
 import type { Primitive } from './core/objects'
+import { stack, canStack } from './core/stacking'
+import type { StackTarget, StackAction } from './core/stacking'
+import { StackMenu } from './components/StackMenu'
 import { LayerTree } from './components/LayerTree'
 import { ShapeMenu } from './components/ShapeMenu'
 import { RepeatPanels } from './components/RepeatPanels'
@@ -31,7 +34,10 @@ function App() {
   const [selectedId, setSelectedId] = useState<string | null>(() => doc.shapes.at(-1)?.id ?? null)
   const [selectedLayerId,setSelectedLayerId]=useState(()=>doc.layers.at(-1)!.id)
   const [shapeMenuOpen,setShapeMenuOpen]=useState(false)
-  const [placementKind,setPlacementKind]=useState<Primitive|null>(null)
+  const [placementKind,setPlacementKind]=useState<Primitive|null>('rectangle')
+  const [stackMenu,setStackMenu]=useState<{target:StackTarget;point:Point}|null>(null)
+  const openStackMenu=(target:StackTarget,point:Point)=>setStackMenu({target,point})
+  const applyStack=(target:StackTarget,action:StackAction)=>dispatch({type:"edit",update:d=>stack(d,target,action)})
   const [pendingPolygon,setPendingPolygon]=useState<{point:Point;screen:Point}|null>(null)
   const [polygonSides,setPolygonSides]=useState(6)
   const [aspectLocked,setAspectLocked]=useState(false)
@@ -90,11 +96,9 @@ function App() {
   }
   function reorderShape(direction: number) {
     if (!active || !canEdit) return
-    dispatch({ type: 'edit', update: d => {
-      const shapes=[...d.shapes], siblings=shapes.filter(s=>s.layerId===active.layerId),from=siblings.findIndex(s=>s.id===active.id),to=clamp(from+direction,0,siblings.length-1)
-      const a=shapes.findIndex(s=>s.id===siblings[from].id),b=shapes.findIndex(s=>s.id===siblings[to].id);[shapes[a],shapes[b]]=[shapes[b],shapes[a]];return {...d,shapes}
-    } })
+    applyStack({kind:'object',id:active.id},direction>0?'forward':'backward')
   }
+
   function finishDraft() {
     if (draft.length < 3 || !canInsert) return
     const shape = { ...initialShape, id: crypto.randomUUID(), layerId:activeLayer.id, name: `Path ${doc.shapes.length + 1}`, points: draft, smooth: 0, fill: palettes[doc.shapes.length % palettes.length][0] }
@@ -119,9 +123,14 @@ function App() {
   useEffect(() => {
     const handle = (event: KeyboardEvent) => {
       if ((event.target as HTMLElement)?.closest('input, select, textarea')) return
-      if (event.key === 'Escape') { dispatch({ type: 'cancel' }); setDraft([]);setPendingPolygon(null);if(tool==='shape')setTool('select'); setExportOpen(false); return }
+      if (event.key === 'Escape') { dispatch({ type: 'cancel' }); setDraft([]);setPendingPolygon(null);if(tool==='shape')setTool('select'); setExportOpen(false);setStackMenu(null); return }
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'z') { event.preventDefault(); if (draft.length && !event.shiftKey) setDraft(d => d.slice(0, -1)); else { setDraft([]); setSelected(null); dispatch({ type: event.shiftKey ? 'redo' : 'undo' }) } return }
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'd' && !exportOpen) { event.preventDefault(); duplicateShape(); return }
+      if ((event.metaKey || event.ctrlKey) && !exportOpen && (event.code === 'BracketLeft' || event.code === 'BracketRight')) {
+        event.preventDefault()
+        const target:StackTarget=active?{kind:'object',id:active.id}:{kind:'layer',id:activeLayer.id}
+        applyStack(target,event.code==='BracketRight'?(event.shiftKey?'front':'forward'):(event.shiftKey?'back':'backward')); return
+      }
       if (event.metaKey || event.ctrlKey || event.altKey || exportOpen) return
       if (event.key === 'v') activateTool('select')
       if (event.key === 'a') activateTool('nodes')
@@ -176,14 +185,14 @@ function App() {
         <div className="dock-header studio-brand-header"><div className="brand" aria-label="Tesselate"><span className="brand-mark">✳</span>{!leftCollapsed&&<span>tesselate</span>}</div><button className="icon-button" aria-label={leftCollapsed ? 'Expand workspace' : 'Collapse workspace'} aria-expanded={!leftCollapsed} title={leftCollapsed ? 'Expand workspace' : 'Collapse workspace'} onClick={() => setLeftCollapsed(!leftCollapsed)}><Icon name="left" size={16} /></button></div>
         {leftCollapsed ? <div className="dock-rail">{(['select', 'nodes', 'pen', 'hand'] as Tool[]).map(t => <button key={t} className={`icon-button ${tool === t ? 'selected' : ''}`} aria-label={`Use ${t} tool`} title={`${t} tool`} disabled={t === 'pen' && !canInsert} onClick={() => activateTool(t)}><Icon name={t} size={17} /></button>)}<span className="rail-divider" /><button className="icon-button" aria-label="Open add shapes" title="Add shapes" onClick={() => {openDock('left','tools');setShapeMenuOpen(true)}}><Icon name="shapes" size={18} /></button><button className="icon-button" aria-label="Open layers" title="Layers" onClick={() => openDock('left', 'layers')}><Icon name="layers" size={18} /></button><button className="icon-button" aria-label="Open object transform" title="Transform" onClick={()=>openDock('left','transform')}><Icon name="fit" size={18}/></button><button className="icon-button" aria-label="Open fill and stroke" title="Fill & stroke" onClick={()=>openDock('left','appearance')}><Icon name="palette" size={18}/></button></div> : <div className="dock-scroll">
           <Panel {...panelProps('tools')} title="Tools" icon="select"><div className="tools">{(['select','nodes','pen','hand'] as Tool[]).map((t,i)=><button key={t} className={tool===t?'tool active':'tool'} title={`${['Arrow','Direct selection','Pen','Pan'][i]} (${['V','A','P','H'][i]})`} aria-label={['Arrow tool','Direct selection tool','Pen tool','Pan canvas'][i]} disabled={t==='pen'&&!canInsert} aria-pressed={tool===t} onClick={()=>activateTool(t)}><Icon name={t} size={17}/><span>{['Arrow','Points','Pen','Pan'][i]}</span></button>)}</div><ShapeMenu open={shapeMenuOpen} setOpen={setShapeMenuOpen} disabled={!canInsert} selected={tool==='shape'?placementKind:null} onSelect={choosePrimitive}/>{!canInsert&&<p className="field-note">{doc.shapes.length>=64?'Object limit reached (64).':'Show and unlock a layer to add objects.'}</p>}</Panel>
-          <Panel {...panelProps('layers')} title="Layers" icon="layers"><LayerTree doc={doc} active={active} layerId={activeLayer.id} onLayer={id=>{setSelectedLayerId(id);setSelectedId(null);setSelected(null);setDraft([]);setPendingPolygon(null)}} onObject={id=>{selectShape(id);activateTool('select')}} dispatch={dispatch} onDuplicate={duplicateShape} onDelete={deleteShape}/></Panel>
+          <Panel {...panelProps('layers')} title="Layers" icon="layers"><LayerTree onStackMenu={openStackMenu} doc={doc} active={active} layerId={activeLayer.id} onLayer={id=>{setSelectedLayerId(id);setSelectedId(null);setSelected(null);setDraft([]);setPendingPolygon(null)}} onObject={id=>{selectShape(id);activateTool('select')}} dispatch={dispatch} onDuplicate={duplicateShape} onDelete={deleteShape}/></Panel>
           <ObjectPanels doc={doc} active={active} canEdit={canEdit} selected={selected} tool={tool} aspectLocked={aspectLocked} setAspectLocked={setAspectLocked} panels={panels} setPanel={(id,open)=>setPanels(p=>({...p,[id]:open}))} dispatch={dispatch} changeShape={changeShape} begin={begin} end={end} onEditMode={()=>{setTool(tool==='nodes'||tool==='pen'?'select':'nodes');setSelected(null);setDraft([]);setPendingPolygon(null)}} onAddNode={addNode} onReorder={reorderShape} onClearPoint={()=>setSelected(null)} onFinish={finishDraft} draftLength={draft.length} palettes={palettes}/>
         </div>}
       </aside>
       <main className="studio">
         <div className="canvas-toolbar"><div className="history-actions"><button className="icon-button" aria-label="Undo" title="Undo (⌘/Ctrl Z)" disabled={!state.past.length && !state.gesture && !draft.length} onClick={undo}><Icon name="undo" /></button><button className="icon-button" aria-label="Redo" title="Redo (⌘/Ctrl Shift Z)" disabled={!state.future.length} onClick={redo}><Icon name="redo" /></button><span className="toolbar-divider" /><div className="pattern-title-area"><input aria-label="Pattern title" maxLength={120} value={doc.title??'Untitled pattern'} onChange={e=>change('title',e.target.value)}/><span className={storageError?'save-status error':'save-status'}>{storageError?'Local save unavailable':draft.length?'Drawing…':saved?'Saved on this device':'Saving…'}</span></div></div><div className="canvas-actions"><button className={`split-button ${split ? 'selected' : ''}`} aria-pressed={split} onClick={() => setSplit(!split)}><Icon name="split" size={16} /><span>Split preview</span></button></div></div>
         <div className={`canvases ${split ? 'is-split' : ''}`}>
-          <Canvas doc={liveDoc} view={view} setView={setView} focus guides={guides} tool={tool} proportional={aspectLocked} canDraw={canInsert} onPlace={placeOnCanvas} activeId={active?.id ?? null} selected={selected} onSelect={selectShape} onEditNodes={() => setTool('nodes')} draft={draft} onDraftPoint={p => setDraft(prev => [...prev, p].slice(0, 300))} finishDraft={finishDraft} dispatch={dispatch} />
+          <Canvas placement={!pendingPolygon&&placementKind?{kind:placementKind,sides:polygonSides}:null} onStackMenu={openStackMenu} doc={liveDoc} view={view} setView={setView} focus guides={guides} tool={tool} proportional={aspectLocked} canDraw={canInsert} onPlace={placeOnCanvas} activeId={active?.id ?? null} selected={selected} onSelect={selectShape} onEditNodes={() => setTool('nodes')} draft={draft} onDraftPoint={p => setDraft(prev => [...prev, p].slice(0, 300))} finishDraft={finishDraft} dispatch={dispatch} />
           {split && <Canvas doc={liveDoc} view={previewView} setView={setPreviewView} focus={false} guides={false} tool="hand" proportional={false} canDraw={false} onPlace={()=>{}} activeId={null} selected={null} onSelect={() => {}} onEditNodes={() => {}} draft={[]} onDraftPoint={() => {}} finishDraft={() => {}} dispatch={dispatch} />}
         </div>
         <div className="canvas-status"><span><span className="green-dot" />Live preview</span><span>{draft.length ? `${draft.length} points · Enter to close · Esc to cancel` : tool === 'shape' ? `Click the canvas to place a ${placementKind??'shape'}` : tool === 'hand' ? 'Drag to pan · Scroll to zoom' : tool === 'pen' ? 'Click edges to add points · Alt-click points to remove' : tool === 'nodes' ? 'Drag nodes · Arrow keys to nudge · Shift for 10×' : 'Drag to move · Shift-resize locks proportions · Double-click for points'}</span><span>{doc.repeat === 'radial' ? `${doc.sectors} sectors` : 'Live repetition'}</span></div>
@@ -197,6 +206,7 @@ function App() {
         <div className="export-dock"><button className="primary" disabled={draft.length>0||Boolean(pendingPolygon)} title="Export pattern" aria-label="Export pattern" onClick={()=>setExportOpen(true)}><Icon name="download" size={16}/>{!rightCollapsed&&<span>Export pattern</span>}</button></div>
       </aside>
     </div>
+    {stackMenu&&<StackMenu point={stackMenu.point} target={stackMenu.target} can={action=>canStack(doc,stackMenu.target,action)} onAction={action=>applyStack(stackMenu.target,action)} onClose={()=>setStackMenu(null)}/>}
     {pendingPolygon&&<PolygonPlacement screen={pendingPolygon.screen} sides={polygonSides} setSides={setPolygonSides} onPlace={()=>placePrimitive('polygon',pendingPolygon.point,polygonSides)} onCancel={()=>setPendingPolygon(null)}/>}
     {message && <div className="toast" role="status">{message}<button aria-label="Dismiss message" onClick={() => setMessage('')}><Icon name="close" size={14} /></button></div>}
     {exportOpen && <div className="modal-backdrop" onClick={e => { if (e.target === e.currentTarget) setExportOpen(false) }}><div className="export-modal" role="dialog" aria-modal="true" aria-labelledby="export-title" onKeyDown={e => { if (e.key === 'Escape') setExportOpen(false); if (e.key === 'Tab') { const els = Array.from(e.currentTarget.querySelectorAll<HTMLElement>('button:not([disabled]), input')); const first = els[0], last = els.at(-1); if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last?.focus() } else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first?.focus() } } }}><div className="modal-heading"><div><p className="eyebrow">FROM EXPLORATION TO ARTWORK</p><h2 id="export-title">Export your pattern</h2></div><button className="icon-button" aria-label="Close export" autoFocus onClick={() => setExportOpen(false)}><Icon name="close" /></button></div><div className="export-thumbnail" style={{ background: doc.background }}><svg viewBox="-260 -100 520 200"><defs><g id="export-thumb-motif"><MotifPaths doc={doc} /></g></defs>{instances(doc, { x: -260, y: -100, width: 520, height: 200 }).map(c => <use key={c.id} href="#export-thumb-motif" transform={matrixText(c.matrix)} />)}</svg></div><div className="export-dimensions"><label>Width, px<input aria-label="Export width" type="number" min={1} max={16000} value={width} onChange={e => setWidth(e.target.valueAsNumber || 0)} /></label><span>×</span><label>Height, px<input aria-label="Export height" type="number" min={1} max={16000} value={height} onChange={e => setHeight(e.target.valueAsNumber || 0)} /></label></div><label className="export-scale">Pattern scale<span><input aria-label="Export pattern scale" type="number" min={25} max={400} value={exportScale} onChange={e => setExportScale(e.target.valueAsNumber || 0)} />%</span></label><p className="field-note">Exports every visible shape in stacking order. Hidden layers, guides and selection marks are excluded.</p><div className="export-buttons"><button disabled={exporting} onClick={() => download('png')}>Export PNG</button><button className="primary" disabled={exporting} onClick={() => download('svg')}><Icon name="download" size={16} />{exporting ? 'Preparing…' : 'Export SVG'}</button></div></div></div>}

@@ -2,7 +2,10 @@ import { useEffect, useId, useRef, useState } from 'react'
 import type { Dispatch, PointerEvent as ReactPointerEvent } from 'react'
 import { guideGeometry, guideMatrix, instances, inversePoint, matrixText, pathData, tileInstance, translateShape, updateShape, visibleShapes, editableShape } from '../core/geometry'
 import type { PatternDocument, Point, Shape } from '../core/geometry'
-import { objectBounds, resizeObject, closestSegment } from '../core/objects'
+import { primitivePoints, objectBounds, resizeObject, closestSegment } from '../core/objects'
+import type { Primitive } from '../core/objects'
+import { initialShape } from '../core/geometry'
+import type { StackTarget } from '../core/stacking'
 import type { Action } from '../core/history'
 import { Icon } from './controls'
 export type Tool = 'select' | 'nodes' | 'pen' | 'hand' | 'shape'
@@ -12,11 +15,13 @@ export function MotifPaths({ doc }: { doc: PatternDocument }) {
   return <>{visibleShapes(doc).map(shape => <path key={shape.id} data-shape-id={shape.id} d={pathData(shape.points, shape.smooth)} fill={shape.fill} stroke={shape.stroke} strokeWidth={shape.strokeWidth} strokeLinejoin="round" />)}</>
 }
 type CanvasProps = {
+  placement?: {kind:Primitive;sides:number} | null; onStackMenu?: (target:StackTarget,point:Point)=>void;
   doc: PatternDocument; view: View; setView: (v: View | ((v: View) => View)) => void; focus: boolean; guides: boolean; tool: Tool; proportional: boolean; canDraw: boolean; onPlace:(point:Point,screen:Point)=>void; activeId: string | null; selected: number | null; onSelect: (id: string | null, node?: number | null) => void; onEditNodes: () => void;
   draft: Point[]; onDraftPoint: (p: Point) => void; finishDraft: () => void; dispatch: Dispatch<Action>
 }
-export function Canvas({ doc, view, setView, focus, guides, tool, proportional, canDraw, onPlace, activeId, selected, onSelect, onEditNodes, draft, onDraftPoint, finishDraft, dispatch }: CanvasProps) {
+export function Canvas({ placement, onStackMenu, doc, view, setView, focus, guides, tool, proportional, canDraw, onPlace, activeId, selected, onSelect, onEditNodes, draft, onDraftPoint, finishDraft, dispatch }: CanvasProps) {
   const container = useRef<HTMLDivElement>(null), svgRef = useRef<SVGSVGElement>(null)
+  const [hover, setHover] = useState<Point|null>(null)
   const [size, setSize] = useState({ width: 800, height: 650 })
   const drag = useRef<{ kind: 'node'; id: string; index: number } | { kind: 'shape'; id: string; original: Shape; start: Point } | { kind: 'resize'; id: string; original: Shape; handle: Point } | { kind: 'pan'; x: number; y: number; view: View } | null>(null)
   const lastHit=useRef<{id:string;time:number;x:number;y:number}|null>(null)
@@ -49,6 +54,7 @@ export function Canvas({ doc, view, setView, focus, guides, tool, proportional, 
   }
   function move(event: ReactPointerEvent<SVGSVGElement>) {
     const current = drag.current
+    if (focus && tool === 'shape' && canDraw) setHover(point(event))
     if (!current) return
     if (current.kind === 'pan') setView({ ...current.view, x: current.view.x - (event.clientX - current.x) / current.view.zoom, y: current.view.y - (event.clientY - current.y) / current.view.zoom })
     else {
@@ -77,7 +83,7 @@ export function Canvas({ doc, view, setView, focus, guides, tool, proportional, 
 
   return <div className={`canvas-pane ${focus ? 'focus-pane' : 'pattern-pane'} tool-${tool}`} ref={container}>
     <div className="pane-label"><span className="label-dot" />{focus ? (guides ? guide.label.toUpperCase() : 'SOURCE + CONTEXT') : 'PATTERN PREVIEW'}{!focus && <span className="live-label">LIVE</span>}</div>
-    <svg ref={svgRef} className="drawing-canvas" role="img" aria-label={focus ? 'Editable shapes and live repeated context' : 'Live pattern preview, drag to pan'} viewBox={`${bounds.x} ${bounds.y} ${bounds.width} ${bounds.height}`} style={{ background: doc.background }} onPointerDown={start} onPointerMove={move} onPointerUp={() => stop()} onPointerCancel={() => stop(true)} onLostPointerCapture={() => stop()} onWheel={event => zoom(Math.exp(-event.deltaY * 0.0015))}>
+    <svg ref={svgRef} className="drawing-canvas" role="img" aria-label={focus ? 'Editable shapes and live repeated context' : 'Live pattern preview, drag to pan'} viewBox={`${bounds.x} ${bounds.y} ${bounds.width} ${bounds.height}`} style={{ background: doc.background }} onPointerDown={start} onPointerMove={move} onPointerLeave={()=>setHover(null)} onPointerUp={() => stop()} onPointerCancel={() => stop(true)} onLostPointerCapture={() => stop()} onWheel={event => zoom(Math.exp(-event.deltaY * 0.0015))}>
       <defs><g id={`motif-${id}`}><MotifPaths doc={doc} /></g></defs>
       <g data-layer="repetitions" opacity={focus ? 0.25 : 1} pointerEvents="none">{copies.filter(c => !focus || !c.source).map(copy => <use key={copy.id} href={`#motif-${id}`} transform={matrixText(copy.matrix)} />)}</g>
       {focus && guides && <g data-layer="geometry-guides" data-geometry={doc.repeat} aria-label={`${guide.label} guides`} pointerEvents="none">
@@ -85,7 +91,7 @@ export function Canvas({ doc, view, setView, focus, guides, tool, proportional, 
 
       </g>}
       {focus && <g transform={sourceTransform} data-layer="source-shapes">
-        {visible.map(shape => <path key={shape.id} data-source-shape={shape.id} d={pathData(shape.points, shape.smooth)} fill={shape.fill} stroke={shape.stroke} strokeWidth={shape.strokeWidth} strokeLinejoin="round" style={{pointerEvents:editableShape(doc,shape)?'auto':'none'}} className={tool === 'hand' || tool === 'pen' ? '' : 'source-shape'} role="button" tabIndex={tool === 'pen' || tool==='shape' || !editableShape(doc,shape) ? -1 : 0} aria-label={`Select ${shape.name}`} onFocus={() => { if (!drag.current&&tool!=='shape') onSelect(shape.id) }} onDoubleClick={() => { if (tool !== 'hand' && tool !== 'pen' && tool!=='shape') { onSelect(shape.id); onEditNodes() } }} onKeyDown={event => { if (event.key === 'Enter') { event.stopPropagation(); onSelect(shape.id); onEditNodes() } }} onPointerDown={event => {
+        {visible.map(shape => <path key={shape.id} onContextMenu={event=>{if(onStackMenu){event.preventDefault();event.stopPropagation();onSelect(shape.id);onStackMenu({kind:"object",id:shape.id},{x:event.clientX,y:event.clientY})}}} data-source-shape={shape.id} d={pathData(shape.points, shape.smooth)} fill={shape.fill} stroke={shape.stroke} strokeWidth={shape.strokeWidth} strokeLinejoin="round" style={{pointerEvents:editableShape(doc,shape)?'auto':'none'}} className={tool === 'hand' || tool === 'pen' ? '' : 'source-shape'} role="button" tabIndex={tool === 'pen' || tool==='shape' || !editableShape(doc,shape) ? -1 : 0} aria-label={`Select ${shape.name}`} onFocus={() => { if (!drag.current&&tool!=='shape') onSelect(shape.id) }} onDoubleClick={() => { if (tool !== 'hand' && tool !== 'pen' && tool!=='shape') { onSelect(shape.id); onEditNodes() } }} onKeyDown={event => { if (event.key === 'Enter') { event.stopPropagation(); onSelect(shape.id); onEditNodes() } }} onPointerDown={event => {
           if (event.button !== 0 || tool === 'hand' || tool==='shape' || draft.length || !editableShape(doc,shape)) return
           if(tool==='pen'){
             const p=point(event),near=closestSegment(shape,p)
@@ -103,6 +109,7 @@ export function Canvas({ doc, view, setView, focus, guides, tool, proportional, 
         </g>}
         {draft.length > 0 && <g data-layer="draft"><path d={pathData(draft)} fill={doc.shapes.find(s => s.id === 'draft')?.fill ?? '#62794c'} fillOpacity=".8" stroke="#414141" strokeWidth={1 / view.zoom} pointerEvents="none" />{draft.map((p, i) => <circle key={i} cx={p.x} cy={p.y} r={(i === 0 ? 6 : 3) / view.zoom} fill={i === 0 ? '#fff' : '#292929'} stroke="#292929" strokeWidth={1 / view.zoom} className="node" role={i === 0 ? 'button' : undefined} tabIndex={i === 0 ? 0 : undefined} aria-label={i === 0 ? 'Close contour' : undefined} onKeyDown={event => { if (i === 0 && event.key === 'Enter') { event.stopPropagation(); finishDraft() } }} onPointerDown={event => { if (i === 0) { event.stopPropagation(); finishDraft() } }} />)}</g>}
       </g>}
+      {focus && tool==='shape' && canDraw && placement && hover && <g transform={sourceTransform} pointerEvents="none" data-layer="placement-preview"><path d={pathData(translateShape({...initialShape,...primitivePoints(placement.kind,100,100,placement.sides)},hover).points,placement.kind==='ellipse'?1:0)} fill="none" stroke="#292929" strokeWidth={1.5/view.zoom} strokeDasharray={`${5/view.zoom} ${3/view.zoom}`} /></g>}
     </svg>
     {focus && !draft.length && <div className="canvas-help"><span className="help-key">{({ select: 'V', nodes: 'A', pen: 'P', hand: 'H', shape:'+' })[tool]}</span>{tool==='shape'?'Click to place a shape.':tool === 'nodes' ? 'Drag a node to refine a shape.' : tool === 'select' ? 'Drag to move · Shift-resize keeps proportions.' : tool === 'pen' ? 'Click edges to add points · Alt-click points to remove.' : 'Drag to explore the plane.'}</div>}
     {warning && <div className="canvas-warning" role="status">{warning}</div>}

@@ -1,0 +1,8 @@
+import { useEffect, useRef } from 'react'
+import type { Point } from '../core/geometry'
+import type { StackAction, StackTarget } from '../core/stacking'
+export function StackMenu({point,target,can,onAction,onClose}:{point:Point;target:StackTarget;can:(action:StackAction)=>boolean;onAction:(action:StackAction)=>void;onClose:()=>void}) {
+  const ref=useRef<HTMLDivElement>(null)
+  useEffect(()=>{const outside=(e:PointerEvent)=>{if(!ref.current?.contains(e.target as Node))onClose()};const key=(e:KeyboardEvent)=>{if(e.key==='Escape')onClose();if(e.key==='ArrowDown'||e.key==='ArrowUp'){e.preventDefault();const buttons=Array.from(ref.current?.querySelectorAll<HTMLButtonElement>('button:not(:disabled)')??[]);const i=buttons.indexOf(document.activeElement as HTMLButtonElement);buttons[(i+(e.key==='ArrowDown'?1:buttons.length-1))%buttons.length]?.focus()}};window.addEventListener('pointerdown',outside);window.addEventListener('keydown',key);return()=>{window.removeEventListener('pointerdown',outside);window.removeEventListener('keydown',key)}},[onClose])
+  return <div ref={ref} className="stack-menu" role="menu" aria-label={`Arrange ${target.kind}`} style={{left:Math.max(8,Math.min(point.x,window.innerWidth-230)),top:Math.max(8,Math.min(point.y,window.innerHeight-180))}}>{([['front','Send to front','⇧ ⌘/Ctrl ]'],['forward','Forward','⌘/Ctrl ]'],['backward','Backward','⌘/Ctrl ['],['back','Send to back','⇧ ⌘/Ctrl [']] as const).map(([action,label,key])=><button key={action} role="menuitem" disabled={!can(action)} onClick={()=>{onAction(action);onClose()}}>{label}<small>{key}</small></button>)}</div>
+}
