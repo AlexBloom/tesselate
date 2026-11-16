@@ -33,3 +33,11 @@ Existing shared-edge/Escher design goals remain in PROJECT.md. Constrained edge 
 - Released November 16, 2026 through promotion PR #5. Production deployment passed: https://github.com/AlexBloom/tesselate-gpt/actions/runs/43946697911.
 - Live Pages link: https://alexbloom.github.io/tesselate-gpt/ redirects to the account’s existing domain at https://alexbloom.design/tesselate-gpt/. Verified HTTP 200 and the rendered editor, with no browser console errors/warnings. No DNS or account-domain changes were made.
 - Build, lint and all 30 tests pass locally and in CI. Neutral UI reviewed visually; drawing colors retained.
+
+## Square placement and stacking controls
+
+- New documents start with a sharp 100×100 square. Existing saved documents are preserved. Primitive placement shows a cursor-following outline using the same source transform, size, sides and coordinate clamp as insertion. It clears outside the canvas and while the polygon confirmation is open.
+- Layers and objects have drag grips, front-to-back stacking positions and insertion indicators. Objects can also be dragged between unlocked layers, including onto empty layer headers.
+- Right-click a canvas object, layer row or object row for Forward, Backward, Send to front and Send to back. Cmd/Ctrl+[ and ] step backward/forward; add Shift for back/front. With a layer selected, shortcuts arrange layers. Ordering is shared with SVG rendering/export and each move is undoable.
+- Build/lint and 35 Node tests pass. Browser checks verified square default, hover outline, object and layer drag ordering, cross-layer transfer/undo, context commands and keyboard front command; no console errors/warnings.
+- These additions are on dev/local preview. The current production release remains the neutral-interface release above.

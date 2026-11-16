@@ -40,9 +40,9 @@ export type PatternDocument = {
 }
 export type Instance = { id: string; matrix: Matrix; cellMatrix: Matrix; source: boolean }
 export const initialShape: Shape = {
-  id: 'shape-1', layerId: 'layer-1', name: 'Object 1',
-  points: [{ x: 0, y: -79 }, { x: 37, y: -40 }, { x: 78, y: -27 }, { x: 47, y: 9 }, { x: 44, y: 69 }, { x: 0, y: 48 }, { x: -44, y: 69 }, { x: -47, y: 9 }, { x: -78, y: -27 }, { x: -37, y: -40 }],
-  smooth: 0.8, fill: '#62794c', stroke: '#34472e', strokeWidth: 0, visible: true,
+  id: 'shape-1', layerId: 'layer-1', name: 'Square 1',
+  points: [{ x: -50, y: -50 }, { x: 50, y: -50 }, { x: 50, y: 50 }, { x: -50, y: 50 }],
+  smooth: 0, fill: '#62794c', stroke: '#34472e', strokeWidth: 0, visible: true,
 }
 export const initialLayer: Layer = { id: 'layer-1', name: 'Layer 1', visible: true, locked: false }
 export const initialDocument: PatternDocument = {
@@ -245,7 +245,7 @@ export function migrateDocument(value: unknown): PatternDocument | null {
   const old = value as Record<string, unknown>
   let shapes: Shape[]
   if (old.version === 2 && Array.isArray(old.shapes)) shapes = old.shapes.map(s => ({ ...s, layerId: initialLayer.id }))
-  else if (Array.isArray(old.points)) shapes = [{ id: 'shape-1', layerId: initialLayer.id, name: 'Object 1', points: old.points, smooth: old.smooth, fill: old.fill, stroke: old.stroke, strokeWidth: old.strokeWidth, visible: true }] as Shape[]
+  else if (Array.isArray(old.points)) shapes = [{ id: 'shape-1', layerId: initialLayer.id, name: 'Square 1', points: old.points, smooth: old.smooth, fill: old.fill, stroke: old.stroke, strokeWidth: old.strokeWidth, visible: true }] as Shape[]
   else return null
   const migrated = { ...initialDocument, repeat: old.repeat, spacingX: old.spacingX, spacingY: old.spacingY, angle: old.repeat === 'radial' ? 0 : old.angle, latticeAngle: old.repeat === 'radial' ? old.angle : 0, mirror: old.mirror, sectors: old.sectors, background: old.background, shapes }
   return validDocument(migrated) ? migrated : null
