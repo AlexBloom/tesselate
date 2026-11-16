@@ -6,7 +6,7 @@ Updated November 16, 2026 (America/New_York).
 
 - Independent project: `/Users/alexbloom/Documents/GitHub/tesselate-gpt`; branch `dev`; repository https://github.com/AlexBloom/tesselate-gpt.
 - Original `../tesselate` and port 5173 remain untouched.
-- Preview opened on a new port: http://127.0.0.1:5175/. Restart with `pnpm dev --host 127.0.0.1 --port 5175 --strictPort`; retained session 11889. Previous port 5174 was left running. No production deployment.
+- Preview opened on a new port: http://127.0.0.1:5175/. Restart with `pnpm dev --host 127.0.0.1 --port 5175 --strictPort`; retained session 11889. Previous port 5174 was left running. Production is live (see below).
 
 ## Focused workspace update
 
@@ -30,4 +30,6 @@ Existing shared-edge/Escher design goals remain in PROJECT.md. Constrained edge 
 
 - Neutral grayscale interface with stronger control labels, borders, active states and selection handles. Artwork palettes and saved drawing colors are preserved.
 - Manual Pages workflow added with lint, geometry tests and production build. Production assets use `/tesselate-gpt/`; local development retains `/`.
-- Release authorized November 16, 2026. Deployment verification pending.
+- Released November 16, 2026 through promotion PR #5. Production deployment passed: https://github.com/AlexBloom/tesselate-gpt/actions/runs/43946697911.
+- Live Pages link: https://alexbloom.github.io/tesselate-gpt/ redirects to the account’s existing domain at https://alexbloom.design/tesselate-gpt/. Verified HTTP 200 and the rendered editor, with no browser console errors/warnings. No DNS or account-domain changes were made.
+- Build, lint and all 30 tests pass locally and in CI. Neutral UI reviewed visually; drawing colors retained.

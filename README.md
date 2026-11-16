@@ -54,3 +54,7 @@ Work on `dev`; promote to `main` by pull request. Production releases require ex
 The Collapsible component uses the [official shadcn/ui Radix implementation](https://ui.shadcn.com/r/styles/new-york/collapsible.json), styled for this studio without introducing a separate CSS framework.
 
 Legacy documents without explicit effect switches infer which effects are active, preserving existing artwork. Optional effect flags and the pattern title are backward-compatible fields in schema v3.
+
+## Production
+
+[Open Tesselate](https://alexbloom.github.io/tesselate-gpt/) (redirects to the account’s existing `alexbloom.design` Pages domain). Releases are manual from `main` after a green promotion PR from `dev`: `gh workflow run deploy.yml --ref main`. Production asset base: `/tesselate-gpt/`.
