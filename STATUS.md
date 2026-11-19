@@ -62,4 +62,5 @@ Existing shared-edge/Escher design goals remain in PROJECT.md. Constrained edge 
 ## Canvas shortcut tooltip correction — November 19, 2026
 
 - Moved the shortcut badge out of the left dock onto the editable canvas’s lower-left corner. Tool instructions are hidden by default and appear above the badge on hover, keyboard focus or tap; Escape dismisses the tooltip. There is one badge even in split preview.
-- User authorized production publication, including the compact control flyouts and high-contrast defaults on dev. Release verification pending.
+- Published through PR #7: https://alexbloom.design/tesselate/. Production workflow https://github.com/AlexBloom/tesselate/actions/runs/44588593078 passed. Includes compact control flyouts and high-contrast defaults.
+- Build/lint, 35 core tests and local/live Chrome checks at 897×853 passed. Verified badge bounds in the canvas, hidden instructions until hover/focus, tooltip above badge, Escape dismissal and a single badge in split/collapsed layouts, with no page errors.
