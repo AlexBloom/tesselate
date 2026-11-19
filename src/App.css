@@ -299,12 +299,6 @@ input[type=color]::-webkit-color-swatch { border: 0; border-radius: 2px; }
 .rail-shapes { display: flex; flex-direction: column; gap: 4px; }
 .rail-shapes button { display: flex; align-items: center; gap: 10px; border: 1px solid transparent; border-radius: 4px; background: transparent; padding: 10px; font-size: 12px; text-align: left; }
 .rail-shapes button:hover, .rail-shapes button[aria-pressed=true] { background: #eee; border-color: #aaa; }
-.tool-help { margin-top: auto; flex-shrink: 0; display: flex; gap: 8px; align-items: flex-start; padding: 14px 12px; border-top: 1px solid #b8b8b8; background: #eee; font-size: 10px; line-height: 1.6; color: #333; }
-.tool-help .help-key { flex-shrink: 0; background: #fff; color: #111; }
-.tool-help.compact { position: relative; padding: 12px 7px; justify-content: center; }
-.tool-help.compact > span:last-child { display: none; }
-.tool-help.compact:hover > span:last-child, .tool-help.compact:focus-within > span:last-child { display: block; position: absolute; bottom: 0; left: calc(100% + 5px); width: 220px; z-index: 26; padding: 12px; background: #fff; color: #222; border: 1px solid #aaa; border-radius: 5px; box-shadow: 0 4px 20px #0002; }
-.left-panel:has(.tool-help.compact) { overflow: visible; }
 .tool.active { color: #fff; background: #222; border-color: #222; }
 .repeat-modes button.active { color: #fff; background: #222; border-color: #222; }
 .icon-button.selected { background: #222; color: #fff; }
@@ -313,3 +307,8 @@ input[type=color]::-webkit-color-swatch { border: 0; border-radius: 2px; }
 .effect-toggle > input:checked { background: #222; border-color: #222; }
 .coordinate-inputs label, .shape-name-field input, .select-field select { border-color: #aaa; background: #fff; color: #222; }
 :root { color: #222; }
+
+.canvas-tool-help { position: absolute; bottom: 22px; left: 22px; z-index: 3; }
+.canvas-tool-help > .help-key { display: flex; align-items: center; justify-content: center; min-width: 27px; height: 28px; padding: 5px 7px; border: 1px solid #aaa; background: #fff; color: #222; border-radius: 4px; font-size: 10px; box-shadow: 0 2px 5px #0001; }
+.canvas-tool-tooltip { position: absolute; left: 0; bottom: calc(100% + 8px); width: 230px; max-width: calc(100vw - 80px); padding: 10px 12px; border: 1px solid #aaa; border-radius: 5px; background: #fff; color: #222; font-size: 11px; line-height: 1.6; box-shadow: 0 4px 20px #0002; pointer-events: none; }
+@media (max-width: 850px) { .canvas-tool-help { left: 10px; bottom: 22px; } }

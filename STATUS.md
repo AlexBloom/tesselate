@@ -58,3 +58,8 @@ Existing shared-edge/Escher design goals remain in PROJECT.md. Constrained edge 
 - Renamed Outline width/color to Stroke width/color. Stroke color stays editable at zero width.
 - Verified in an isolated Chrome session: default colors, single hint, zero-width color editing, hover dismissal, pinned editing, collapsed shape placement and geometry edits, and save/reload. No page errors. Build/lint and all 35 core tests pass.
 - This task’s preview is http://127.0.0.1:64220/ (`pnpm dev --host 127.0.0.1 --port 64220 --strictPort`, session 60298). Checked the chosen port before launch. Existing servers were not modified. Changes are on dev; production has not been republished.
+
+## Canvas shortcut tooltip correction — November 19, 2026
+
+- Moved the shortcut badge out of the left dock onto the editable canvas’s lower-left corner. Tool instructions are hidden by default and appear above the badge on hover, keyboard focus or tap; Escape dismisses the tooltip. There is one badge even in split preview.
+- User authorized production publication, including the compact control flyouts and high-contrast defaults on dev. Release verification pending.
