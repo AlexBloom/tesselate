@@ -10,6 +10,7 @@ import { stack, canStack } from './core/stacking'
 import type { StackTarget, StackAction } from './core/stacking'
 import { StackMenu } from './components/StackMenu'
 import { LayerTree } from './components/LayerTree'
+import { RailMenu } from './components/RailMenu'
 import { ShapeMenu } from './components/ShapeMenu'
 import { RepeatPanels } from './components/RepeatPanels'
 import { ObjectPanels } from './components/ObjectPanels'
@@ -19,7 +20,7 @@ import './App.css'
 
 const storageKey = 'tesselate-gpt.document.v3'
 const clamp = (n: number, min: number, max: number) => Math.min(max, Math.max(min, n))
-const palettes = [['#62794c', '#f4f2e9'], ['#b45e47', '#f6e8d7'], ['#415c80', '#edf1f2'], ['#ae7844', '#f4eddb'], ['#825c81', '#f2e8ee'], ['#e5c77a', '#293e37']]
+const palettes = [['#ffffff', '#eeeeee'], ['#62794c', '#f4f2e9'], ['#b45e47', '#f6e8d7'], ['#415c80', '#edf1f2'], ['#ae7844', '#f4eddb'], ['#825c81', '#f2e8ee'], ['#e5c77a', '#293e37']]
 function loadDocument(): PatternDocument {
   for(const key of [storageKey,'tesselate-gpt.document.v2','tesselate-gpt.document.v1']){
     try { const doc=migrateDocument(JSON.parse(localStorage.getItem(key)??'null'));if(doc)return doc } catch { /* Try the previous saved version. */ }
@@ -69,11 +70,6 @@ function App() {
   const changeShape = <K extends keyof Shape>(key: K, value: Shape[K]) => { if (active && canEdit) dispatch({ type: state.gesture ? 'live' : 'edit', update: d => updateShape(d, active.id, shape => ({ ...shape, [key]: value })) }) }
   const selectShape = (id: string | null, node: number | null = null) => { setSelectedId(id); setSelected(node);const object=doc.shapes.find(s=>s.id===id);if(object)setSelectedLayerId(object.layerId) }
   const panelProps = (id: string) => ({ id, open: panels[id], onOpenChange: (open: boolean) => setPanels(p => ({ ...p, [id]: open })) })
-  function openDock(side: 'left' | 'right', section: string) {
-    if (side === 'left') setLeftCollapsed(false); else setRightCollapsed(false)
-    setPanels(p => ({ ...p, [section]: true }))
-    requestAnimationFrame(() => document.querySelector(`[data-panel-id="${section}"]`)?.scrollIntoView({ block: 'nearest' }))
-  }
   function activateTool(next: Tool) { setTool(next); setDraft([]); setSelected(null);setPendingPolygon(null) }
   function insert(shape: Shape) {
     if (!canInsert) return
@@ -82,7 +78,7 @@ function App() {
   function placePrimitive(kind:Primitive,point:Point,sides=6) {
     if(!canInsert)return
     const count=doc.shapes.length, geometry=primitivePoints(kind,100,100,sides)
-    insert(translateShape({...initialShape,...geometry,id:crypto.randomUUID(),layerId:activeLayer.id,name:`${kind==='ellipse'?'Ellipse':kind==='rectangle'?'Rectangle':'Polygon'} ${count+1}`,fill:palettes[count%palettes.length][0]},point))
+    insert(translateShape({...initialShape,...geometry,id:crypto.randomUUID(),layerId:activeLayer.id,name:`${kind==='ellipse'?'Ellipse':kind==='rectangle'?'Rectangle':'Polygon'} ${count+1}`},point))
   }
   function choosePrimitive(kind:Primitive){setPlacementKind(kind);activateTool('shape');selectShape(null)}
   function placeOnCanvas(point:Point,screen:Point){if(!canInsert||!placementKind)return;if(placementKind==='polygon')setPendingPolygon({point,screen});else placePrimitive(placementKind,point)}
@@ -101,7 +97,7 @@ function App() {
 
   function finishDraft() {
     if (draft.length < 3 || !canInsert) return
-    const shape = { ...initialShape, id: crypto.randomUUID(), layerId:activeLayer.id, name: `Path ${doc.shapes.length + 1}`, points: draft, smooth: 0, fill: palettes[doc.shapes.length % palettes.length][0] }
+    const shape = { ...initialShape, id: crypto.randomUUID(), layerId:activeLayer.id, name: `Path ${doc.shapes.length + 1}`, points: draft, smooth: 0 }
     insert(shape); setTool('nodes'); setSelected(0)
   }
   function addNode() {
@@ -153,7 +149,7 @@ function App() {
     }
     window.addEventListener('keydown', handle); return () => window.removeEventListener('keydown', handle)
   })
-  const liveDoc = draft.length >= 2 ? { ...doc, shapes: [...doc.shapes, { ...initialShape, id: 'draft', layerId:activeLayer.id, name: 'Draft', points: draft, smooth: 0, fill: palettes[doc.shapes.length % palettes.length][0] }] } : doc
+  const liveDoc = draft.length >= 2 ? { ...doc, shapes: [...doc.shapes, { ...initialShape, id: 'draft', layerId:activeLayer.id, name: 'Draft', points: draft, smooth: 0 }] } : doc
   async function download(format: 'svg' | 'png') {
     setExporting(true)
     try {
@@ -179,15 +175,25 @@ function App() {
     finally { setExporting(false) }
   }
 
+  const objectControls=(only?:string)=><ObjectPanels only={only} doc={doc} active={active} canEdit={canEdit} selected={selected} tool={tool} aspectLocked={aspectLocked} setAspectLocked={setAspectLocked} panels={only?{[only]:true}:panels} setPanel={(id,open)=>setPanels(p=>({...p,[id]:open}))} dispatch={dispatch} changeShape={changeShape} begin={begin} end={end} onEditMode={()=>{setTool(tool==='nodes'||tool==='pen'?'select':'nodes');setSelected(null);setDraft([]);setPendingPolygon(null)}} onAddNode={addNode} onReorder={reorderShape} onClearPoint={()=>setSelected(null)} onFinish={finishDraft} draftLength={draft.length} palettes={palettes}/>
+  const layerControls=<LayerTree onStackMenu={openStackMenu} doc={doc} active={active} layerId={activeLayer.id} onLayer={id=>{setSelectedLayerId(id);setSelectedId(null);setSelected(null);setDraft([]);setPendingPolygon(null)}} onObject={id=>{selectShape(id);activateTool('select')}} dispatch={dispatch} onDuplicate={duplicateShape} onDelete={deleteShape}/>
+  const repeatControls=(only?:string)=><RepeatPanels only={only} doc={doc} change={change} begin={begin} end={end} panels={only?{[only]:true}:panels} setPanel={(id,open)=>setPanels(p=>({...p,[id]:open}))} guides={guides} setGuides={setGuides} dispatch={dispatch}/>
+  const toolHint=draft.length?`${draft.length} points · Enter to close · Esc to cancel`:tool==='shape'?`Click to place a ${placementKind??'shape'}`:tool==='hand'?'Drag to pan · Scroll to zoom':tool==='pen'?'Click edges to add points · Alt-click points to remove':tool==='nodes'?'Drag nodes · Arrow keys to nudge · Shift for 10×':'Drag to move · Shift-resize locks proportions · Double-click for points'
+
   return <div className="app-shell">
     <div className="workspace">
       <aside className={`left-panel ${leftCollapsed ? 'dock-collapsed' : ''}`} aria-label="Workspace panels">
         <div className="dock-header studio-brand-header"><div className="brand" aria-label="Tesselate"><span className="brand-mark">✳</span>{!leftCollapsed&&<span>tesselate</span>}</div><button className="icon-button" aria-label={leftCollapsed ? 'Expand workspace' : 'Collapse workspace'} aria-expanded={!leftCollapsed} title={leftCollapsed ? 'Expand workspace' : 'Collapse workspace'} onClick={() => setLeftCollapsed(!leftCollapsed)}><Icon name="left" size={16} /></button></div>
-        {leftCollapsed ? <div className="dock-rail">{(['select', 'nodes', 'pen', 'hand'] as Tool[]).map(t => <button key={t} className={`icon-button ${tool === t ? 'selected' : ''}`} aria-label={`Use ${t} tool`} title={`${t} tool`} disabled={t === 'pen' && !canInsert} onClick={() => activateTool(t)}><Icon name={t} size={17} /></button>)}<span className="rail-divider" /><button className="icon-button" aria-label="Open add shapes" title="Add shapes" onClick={() => {openDock('left','tools');setShapeMenuOpen(true)}}><Icon name="shapes" size={18} /></button><button className="icon-button" aria-label="Open layers" title="Layers" onClick={() => openDock('left', 'layers')}><Icon name="layers" size={18} /></button><button className="icon-button" aria-label="Open object transform" title="Transform" onClick={()=>openDock('left','transform')}><Icon name="fit" size={18}/></button><button className="icon-button" aria-label="Open fill and stroke" title="Fill & stroke" onClick={()=>openDock('left','appearance')}><Icon name="palette" size={18}/></button></div> : <div className="dock-scroll">
+        {leftCollapsed ? <div className="dock-rail">{(['select','nodes','pen','hand'] as Tool[]).map((t,i)=><button key={t} className={`icon-button ${tool===t?'selected':''}`} aria-label={['Arrow tool','Direct selection tool','Pen tool','Pan canvas'][i]} title={['Arrow (V)','Points (A)','Pen (P)','Pan (H)'][i]} disabled={t==='pen'&&!canInsert} onClick={()=>activateTool(t)}><Icon name={t} size={17}/></button>)}<span className="rail-divider"/>
+          <RailMenu title="Shapes" icon="shapes" side="left"><div className="rail-shapes">{(['rectangle','ellipse','polygon'] as Primitive[]).map((kind,i)=><button data-close-rail key={kind} disabled={!canInsert} aria-pressed={tool==='shape'&&placementKind===kind} onClick={()=>choosePrimitive(kind)}><Icon name={['square','circle','hex'][i]} size={17}/>{['Rectangle / square','Ellipse / circle','Polygon'][i]}</button>)}</div></RailMenu>
+          <RailMenu title="Layers" icon="layers" side="left">{layerControls}</RailMenu>
+          {([['transform','fit','Transform'],['contour','nodes','Object'],['appearance','palette','Fill & stroke']] as const).map(([key,icon,title])=><RailMenu key={key} title={title} icon={icon} side="left">{objectControls(key)}</RailMenu>)}
+        </div> : <div className="dock-scroll">
           <Panel {...panelProps('tools')} title="Tools" icon="select"><div className="tools">{(['select','nodes','pen','hand'] as Tool[]).map((t,i)=><button key={t} className={tool===t?'tool active':'tool'} title={`${['Arrow','Direct selection','Pen','Pan'][i]} (${['V','A','P','H'][i]})`} aria-label={['Arrow tool','Direct selection tool','Pen tool','Pan canvas'][i]} disabled={t==='pen'&&!canInsert} aria-pressed={tool===t} onClick={()=>activateTool(t)}><Icon name={t} size={17}/><span>{['Arrow','Points','Pen','Pan'][i]}</span></button>)}</div><ShapeMenu open={shapeMenuOpen} setOpen={setShapeMenuOpen} disabled={!canInsert} selected={tool==='shape'?placementKind:null} onSelect={choosePrimitive}/>{!canInsert&&<p className="field-note">{doc.shapes.length>=64?'Object limit reached (64).':'Show and unlock a layer to add objects.'}</p>}</Panel>
-          <Panel {...panelProps('layers')} title="Layers" icon="layers"><LayerTree onStackMenu={openStackMenu} doc={doc} active={active} layerId={activeLayer.id} onLayer={id=>{setSelectedLayerId(id);setSelectedId(null);setSelected(null);setDraft([]);setPendingPolygon(null)}} onObject={id=>{selectShape(id);activateTool('select')}} dispatch={dispatch} onDuplicate={duplicateShape} onDelete={deleteShape}/></Panel>
-          <ObjectPanels doc={doc} active={active} canEdit={canEdit} selected={selected} tool={tool} aspectLocked={aspectLocked} setAspectLocked={setAspectLocked} panels={panels} setPanel={(id,open)=>setPanels(p=>({...p,[id]:open}))} dispatch={dispatch} changeShape={changeShape} begin={begin} end={end} onEditMode={()=>{setTool(tool==='nodes'||tool==='pen'?'select':'nodes');setSelected(null);setDraft([]);setPendingPolygon(null)}} onAddNode={addNode} onReorder={reorderShape} onClearPoint={()=>setSelected(null)} onFinish={finishDraft} draftLength={draft.length} palettes={palettes}/>
+          <Panel {...panelProps('layers')} title="Layers" icon="layers">{layerControls}</Panel>
+          {objectControls()}
         </div>}
+        <div tabIndex={leftCollapsed?0:undefined} aria-label={leftCollapsed?toolHint:undefined} className={`tool-help ${leftCollapsed?'compact':''}`}><span className="help-key">{({select:'V',nodes:'A',pen:'P',hand:'H',shape:'+'})[tool]}</span><span>{toolHint}</span></div>
       </aside>
       <main className="studio">
         <div className="canvas-toolbar"><div className="history-actions"><button className="icon-button" aria-label="Undo" title="Undo (⌘/Ctrl Z)" disabled={!state.past.length && !state.gesture && !draft.length} onClick={undo}><Icon name="undo" /></button><button className="icon-button" aria-label="Redo" title="Redo (⌘/Ctrl Shift Z)" disabled={!state.future.length} onClick={redo}><Icon name="redo" /></button><span className="toolbar-divider" /><div className="pattern-title-area"><input aria-label="Pattern title" maxLength={120} value={doc.title??'Untitled pattern'} onChange={e=>change('title',e.target.value)}/><span className={storageError?'save-status error':'save-status'}>{storageError?'Local save unavailable':draft.length?'Drawing…':saved?'Saved on this device':'Saving…'}</span></div></div><div className="canvas-actions"><button className={`split-button ${split ? 'selected' : ''}`} aria-pressed={split} onClick={() => setSplit(!split)}><Icon name="split" size={16} /><span>Split preview</span></button></div></div>
@@ -195,12 +201,12 @@ function App() {
           <Canvas placement={!pendingPolygon&&placementKind?{kind:placementKind,sides:polygonSides}:null} onStackMenu={openStackMenu} doc={liveDoc} view={view} setView={setView} focus guides={guides} tool={tool} proportional={aspectLocked} canDraw={canInsert} onPlace={placeOnCanvas} activeId={active?.id ?? null} selected={selected} onSelect={selectShape} onEditNodes={() => setTool('nodes')} draft={draft} onDraftPoint={p => setDraft(prev => [...prev, p].slice(0, 300))} finishDraft={finishDraft} dispatch={dispatch} />
           {split && <Canvas doc={liveDoc} view={previewView} setView={setPreviewView} focus={false} guides={false} tool="hand" proportional={false} canDraw={false} onPlace={()=>{}} activeId={null} selected={null} onSelect={() => {}} onEditNodes={() => {}} draft={[]} onDraftPoint={() => {}} finishDraft={() => {}} dispatch={dispatch} />}
         </div>
-        <div className="canvas-status"><span><span className="green-dot" />Live preview</span><span>{draft.length ? `${draft.length} points · Enter to close · Esc to cancel` : tool === 'shape' ? `Click the canvas to place a ${placementKind??'shape'}` : tool === 'hand' ? 'Drag to pan · Scroll to zoom' : tool === 'pen' ? 'Click edges to add points · Alt-click points to remove' : tool === 'nodes' ? 'Drag nodes · Arrow keys to nudge · Shift for 10×' : 'Drag to move · Shift-resize locks proportions · Double-click for points'}</span><span>{doc.repeat === 'radial' ? `${doc.sectors} sectors` : 'Live repetition'}</span></div>
+        <div className="canvas-status"><span><span className="green-dot"/>Live preview</span><span>{doc.repeat==='radial'?`${doc.sectors} sectors`:'Live repetition'}</span></div>
       </main>
       <aside className={`right-panel ${rightCollapsed ? 'dock-collapsed' : ''}`} aria-label="Inspector panels">
         <div className="dock-header"><span>PATTERN</span><button className="icon-button" aria-label={rightCollapsed ? 'Expand inspector' : 'Collapse inspector'} aria-expanded={!rightCollapsed} title={rightCollapsed ? 'Expand inspector' : 'Collapse inspector'} onClick={() => setRightCollapsed(!rightCollapsed)}><Icon name="right" size={16} /></button></div>
-        {rightCollapsed ? <div className="dock-rail">{[['geometry', 'hex', 'Repeat geometry'], ['tiles', 'rotate', 'Tile transforms'], ['placement', 'grid', 'Pattern placement']].map(([key, icon, label]) => <button key={key} className="icon-button" aria-label={`Open ${label}`} title={label} onClick={() => openDock('right', key)}><Icon name={icon} size={18} /></button>)}</div> : <div className="dock-scroll">
-          <RepeatPanels doc={doc} change={change} begin={begin} end={end} panels={panels} setPanel={(id,open)=>setPanels(p=>({...p,[id]:open}))} guides={guides} setGuides={setGuides} dispatch={dispatch}/>
+        {rightCollapsed ? <div className="dock-rail">{[['geometry','hex','Repeat geometry'],['tiles','rotate','Tile transforms'],['placement','grid','Pattern placement']].map(([key,icon,title])=><RailMenu key={key} title={title} icon={icon} side="right">{repeatControls(key)}</RailMenu>)}</div> : <div className="dock-scroll">
+          {repeatControls()}
 
         </div>}
         <div className="export-dock"><button className="primary" disabled={draft.length>0||Boolean(pendingPolygon)} title="Export pattern" aria-label="Export pattern" onClick={()=>setExportOpen(true)}><Icon name="download" size={16}/>{!rightCollapsed&&<span>Export pattern</span>}</button></div>
