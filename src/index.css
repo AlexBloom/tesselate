@@ -1,9 +1,9 @@
-:root { font-family: 'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #414141; background: #fcfcfc; font-synthesis: none; text-rendering: optimizeLegibility; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+:root { font-family: 'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #222222; background: #fcfcfc; font-synthesis: none; text-rendering: optimizeLegibility; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
 * { box-sizing: border-box; }
 body { margin: 0; min-width: 360px; }
 button, input, select { font: inherit; }
 button { cursor: pointer; color: inherit; }
 button:disabled { cursor: default; opacity: .35; }
-button:focus-visible, input:focus-visible, .node:focus-visible { outline: 2px solid #666666; outline-offset: 3px; }
+button:focus-visible, input:focus-visible, .node:focus-visible { outline: 2px solid #444444; outline-offset: 3px; }
 button { -webkit-tap-highlight-color: transparent; }
-::selection { background: #c7c7c7; }
+::selection { background: #b8b8b8; }

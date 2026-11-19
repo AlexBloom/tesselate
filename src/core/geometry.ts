@@ -42,12 +42,12 @@ export type Instance = { id: string; matrix: Matrix; cellMatrix: Matrix; source:
 export const initialShape: Shape = {
   id: 'shape-1', layerId: 'layer-1', name: 'Square 1',
   points: [{ x: -50, y: -50 }, { x: 50, y: -50 }, { x: 50, y: 50 }, { x: -50, y: 50 }],
-  smooth: 0, fill: '#62794c', stroke: '#34472e', strokeWidth: 0, visible: true,
+  smooth: 0, fill: '#ffffff', stroke: '#000000', strokeWidth: 1.5, visible: true,
 }
 export const initialLayer: Layer = { id: 'layer-1', name: 'Layer 1', visible: true, locked: false }
 export const initialDocument: PatternDocument = {
   version: 3, layers: [initialLayer], flipX: false, flipY: false, offsetX: 0, offsetY: 0, rotationStep: 0, stepAxis: 'column', latticeAngle: 0, patternX: 0, patternY: 0, shapes: [initialShape], repeat: 'brick', spacingX: 185, spacingY: 173,
-  angle: 0, mirror: false, sectors: 8, background: '#f4f2e9',
+  angle: 0, mirror: false, sectors: 8, background: '#eeeeee',
 }
 
 export function updateShape(doc: PatternDocument, id: string, update: (shape: Shape) => Shape): PatternDocument {

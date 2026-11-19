@@ -46,4 +46,20 @@ Existing shared-edge/Escher design goals remain in PROJECT.md. Constrained edge 
 
 - User authorized renaming this repository to `AlexBloom/tesselate` and republishing. GitHub’s old `tesselate` URL resolved to `archive-tesselate-grok` before the rename; that archived repository was left untouched.
 - Updated origin, package name and production asset base to `/tesselate/`. Local checkout remains `/Users/alexbloom/Documents/GitHub/tesselate-gpt`; existing browser storage keys are retained for document continuity.
-- This release includes square defaults, hover placement outlines and layer/object stacking controls. New URL deployment verification pending.
+- This release includes square defaults, hover placement outlines and layer/object stacking controls. Published through PR #6; deployment https://github.com/AlexBloom/tesselate/actions/runs/43972276417 passed.
+- Live: https://alexbloom.github.io/tesselate/ redirects to https://alexbloom.design/tesselate/. Verified HTTP 200, expected page title, and byte-for-byte matches for both JS and CSS against the release build. Build/lint and all 35 tests passed locally and in CI.
+- Fresh browser verification was unavailable because its old working directory was removed. Auto-review rejected recreating that directory; no archived project files were changed.
+
+## High contrast defaults and compact controls — November 19, 2026
+
+- Tool instructions now appear once, in the bottom-left dock footer. In compact mode, focus/hover the shortcut badge to read them. Removed redundant canvas and status-bar instructions.
+- Collapsed left and right rails expose hover flyouts; click pins a flyout for editing. Escape, close buttons and outside clicks dismiss them. Shape selection, layers, Transform, Object, Fill & stroke, repeat geometry, tile effects and placement work without expanding the docks. The expanded docks and flyouts share the same controls.
+- Stronger neutral text and selected-tool contrast. New objects and new documents use white fills and black 1.5px strokes on a neutral gray canvas; existing saved artwork retains its styling. Layer thumbnails include strokes.
+- Renamed Outline width/color to Stroke width/color. Stroke color stays editable at zero width.
+- Verified in an isolated Chrome session: default colors, single hint, zero-width color editing, hover dismissal, pinned editing, collapsed shape placement and geometry edits, and save/reload. No page errors. Build/lint and all 35 core tests pass.
+- This task’s preview is http://127.0.0.1:64220/ (`pnpm dev --host 127.0.0.1 --port 64220 --strictPort`, session 60298). Checked the chosen port before launch. Existing servers were not modified. Changes are on dev; production has not been republished.
+
+## Canvas shortcut tooltip correction — November 19, 2026
+
+- Moved the shortcut badge out of the left dock onto the editable canvas’s lower-left corner. Tool instructions are hidden by default and appear above the badge on hover, keyboard focus or tap; Escape dismisses the tooltip. There is one badge even in split preview.
+- User authorized production publication, including the compact control flyouts and high-contrast defaults on dev. Release verification pending.

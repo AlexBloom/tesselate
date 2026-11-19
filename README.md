@@ -64,3 +64,5 @@ Legacy documents without explicit effect switches infer which effects are active
 New documents start with a square. Select a primitive and hover over the canvas for a placement outline; click to place it. Existing drawings retain their shapes.
 
 Drag the dotted grips in Layers to reorder layers or objects. Top rows paint in front; the small position numbers increase toward the front. Drag objects onto another unlocked layer to move them there. Right-click objects (in the canvas or panel) or layer rows for Forward, Backward, Send to front, and Send to back. Use Cmd/Ctrl+] or [ to step forward/backward, and add Shift to send to front/back. Select a layer name to use these shortcuts for that layer. All stacking changes support undo.
+
+Collapsed dock icons open control flyouts on hover; click to pin one while editing. Escape, an outside click, or the close button dismisses it. The canvas’s lower-left shortcut badge shows tool hints on hover, focus or tap. New shapes start with white fills and black 1.5px strokes; stroke color can be edited even at zero stroke width.
