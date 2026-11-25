@@ -1,3 +1,4 @@
+import { geometryPoints } from './network.ts'
 import { initialDocument, translateShape, validDocument } from './geometry.ts'
 import type { PatternDocument, Shape, Layer, Point } from './geometry.ts'
 import type { StackTarget } from './stacking.ts'
@@ -21,8 +22,8 @@ export function pasteTarget(doc:PatternDocument,data:ClipboardData,layerId:strin
   const shapes=data.shapes.map(s=>translateShape({...s,id:id(),layerId:newLayer?.id??layerId,name:`${s.name} copy`.slice(0,80)},delta))
   // Preserve the relative positions of an entire copied layer near coordinate limits.
   if(shapes.length&&data.kind==='layer'){
-    const all={...data.shapes[0],points:data.shapes.flatMap(s=>s.points)},moved=translateShape(all,delta),dx=moved.points[0].x-all.points[0].x,dy=moved.points[0].y-all.points[0].y
-    shapes.forEach((s,i)=>{s.points=data.shapes[i].points.map(p=>({x:p.x+dx,y:p.y+dy}))})
+    const all={...data.shapes[0],points:data.shapes.flatMap(geometryPoints)},moved=translateShape(all,delta),dx=moved.points[0].x-all.points[0].x,dy=moved.points[0].y-all.points[0].y
+    shapes.forEach((s,i)=>{Object.assign(s,translateShape({...data.shapes[i],id:s.id,layerId:s.layerId,name:s.name},{x:dx,y:dy}))})
   }
   return {doc:{...doc,layers:newLayer?[...doc.layers,newLayer]:doc.layers,shapes:[...doc.shapes,...shapes]},target:newLayer?{kind:'layer',id:newLayer.id}:{kind:'object',id:shapes[0].id}}
 }

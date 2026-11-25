@@ -1,3 +1,5 @@
+import { geometryPoints, mapGeometry, shapePath } from './network.ts'
+import type { Edge } from './network.ts'
 import { validGradient, gradientSVG } from './paint.ts'
 import type { Gradient } from './paint.ts'
 export type Point = { x: number; y: number }
@@ -9,6 +11,14 @@ export type Shape = {
   layerId: string
   id: string
   name: string
+  edges?: Edge[]
+  tangents?: Point[]
+  fillRule?: 'nonzero'|'evenodd'
+  lineCap?: 'butt'|'round'|'square'
+  lineJoin?: 'miter'|'round'|'bevel'
+  opacity?: number
+  fillOpacity?: number
+  strokeOpacity?: number
   points: Point[]
   smooth: number
   fillGradient?: Gradient
@@ -81,13 +91,13 @@ export function moveToLayer(doc: PatternDocument, id: string, layerId: string): 
 }
 
 export function shapeCenter(shape: Shape): Point {
-  return { x: (Math.min(...shape.points.map(p => p.x)) + Math.max(...shape.points.map(p => p.x))) / 2, y: (Math.min(...shape.points.map(p => p.y)) + Math.max(...shape.points.map(p => p.y))) / 2 }
+  return { x: (Math.min(...geometryPoints(shape).map(p => p.x)) + Math.max(...geometryPoints(shape).map(p => p.x))) / 2, y: (Math.min(...geometryPoints(shape).map(p => p.y)) + Math.max(...geometryPoints(shape).map(p => p.y))) / 2 }
 }
 /** Clamp the translation as a unit; do not deform a shape at the workspace limit. */
 export function translateShape(shape: Shape, delta: Point): Shape {
-  const x = Math.max(-2000 - Math.min(...shape.points.map(p => p.x)), Math.min(2000 - Math.max(...shape.points.map(p => p.x)), delta.x))
-  const y = Math.max(-2000 - Math.min(...shape.points.map(p => p.y)), Math.min(2000 - Math.max(...shape.points.map(p => p.y)), delta.y))
-  return { ...shape, points: shape.points.map(p => ({ x: p.x + x, y: p.y + y })) }
+  const x = Math.max(-2000 - Math.min(...geometryPoints(shape).map(p => p.x)), Math.min(2000 - Math.max(...geometryPoints(shape).map(p => p.x)), delta.x))
+  const y = Math.max(-2000 - Math.min(...geometryPoints(shape).map(p => p.y)), Math.min(2000 - Math.max(...geometryPoints(shape).map(p => p.y)), delta.y))
+  return mapGeometry(shape,p=>({x:p.x+x,y:p.y+y}))
 }
 
 export function transformPoint(p: Point, m: Matrix): Point {
@@ -160,7 +170,7 @@ export function pathData(points: Point[], smooth = 0): string {
 export function motifRadius(doc: PatternDocument): number {
   let radius = 0
   for (const shape of visibleShapes(doc)) {
-    const points = shape.points, n = points.length
+    const points = geometryPoints(shape), n = points.length
     for (let i = 0; i < n; i++) {
       const p = points[i], prev = points[(i - 1 + n) % n], next = points[(i + 1) % n]
       const offset = { x: (next.x - prev.x) * shape.smooth / 6, y: (next.y - prev.y) * shape.smooth / 6 }
@@ -218,11 +228,13 @@ export function exportSVG(doc: PatternDocument, width: number, height: number, s
   const visible = visibleShapes(doc)
   if (copies.length * visible.length > 100000) throw new Error('Too many shapes to export. Increase spacing or reduce the output area.')
   const paintDefs=visible.map((s,i)=>(s.fillGradient?gradientSVG(`fill-${i}`,s.fillGradient):'')+(s.strokeGradient?gradientSVG(`stroke-${i}`,s.strokeGradient):'')).join('')+(doc.backgroundGradient?gradientSVG('background-paint',doc.backgroundGradient):'')
-  const paths = visible.map((shape, i) => `<path id="shape-${i}" d="${pathData(shape.points, shape.smooth)}" fill="${shape.fillGradient?`url(#fill-${i})`:shape.fill}" stroke="${shape.strokeGradient?`url(#stroke-${i})`:shape.stroke}" stroke-width="${shape.strokeWidth}" stroke-linejoin="round"/>`).join('')
+  const paths = visible.map((shape, i) => `<path id="shape-${i}" d="${shapePath(shape)}" fill="${shape.fillGradient?`url(#fill-${i})`:shape.fill}" stroke="${shape.strokeGradient?`url(#stroke-${i})`:shape.stroke}" stroke-width="${shape.strokeWidth}" stroke-linejoin="${shape.lineJoin??'round'}" stroke-linecap="${shape.lineCap??'butt'}" fill-rule="${shape.fillRule??'nonzero'}" opacity="${shape.opacity??1}" fill-opacity="${shape.fillOpacity??1}" stroke-opacity="${shape.strokeOpacity??1}"/>`).join('')
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="${-w / 2} ${-h / 2} ${w} ${h}"><title>Tesselate pattern</title><defs>${paintDefs}<clipPath id="artboard"><rect x="${-w / 2}" y="${-h / 2}" width="${w}" height="${h}"/></clipPath><g id="motif">${paths}</g></defs><rect x="${-w / 2}" y="${-h / 2}" width="${w}" height="${h}" fill="${doc.backgroundGradient?'url(#background-paint)':doc.background}"/><g clip-path="url(#artboard)">${copies.map(copy => `<use href="#motif" transform="${matrixText(copy.matrix)}"/>`).join('')}</g></svg>`
 }
 
 const color = (c: unknown) => typeof c === 'string' && /^#[0-9a-f]{6}$/i.test(c)
+const paint=(c:unknown)=>c==='none'||color(c)
+const coordinate=(p:unknown):boolean=>Boolean(p&&typeof p==='object'&&inRange((p as Point).x,-2000,2000)&&inRange((p as Point).y,-2000,2000))
 const inRange = (n: unknown, min: number, max: number) => typeof n === 'number' && Number.isFinite(n) && n >= min && n <= max
 export function validDocument(value: unknown): value is PatternDocument {
   if (!value || typeof value !== 'object') return false
@@ -239,9 +251,11 @@ export function validDocument(value: unknown): value is PatternDocument {
     && Array.isArray(d.shapes) && d.shapes.length <= 64
     && new Set(d.shapes.map(s => s?.id)).size === d.shapes.length
     && d.shapes.every(s => s && d.layers.some(l => l.id === s.layerId) && typeof s.id === 'string' && s.id.length > 0 && s.id.length <= 100 && typeof s.name === 'string' && s.name.length <= 80 && typeof s.visible === 'boolean'
-      && Array.isArray(s.points) && s.points.length >= 3 && s.points.length <= 300 && s.points.every(p => p && inRange(p.x, -2000, 2000) && inRange(p.y, -2000, 2000))
-      && (s.fillGradient===undefined||validGradient(s.fillGradient)) && (s.strokeGradient===undefined||validGradient(s.strokeGradient)) && color(s.fill) && color(s.stroke) && inRange(s.smooth, 0, 1) && inRange(s.strokeWidth, 0, 8))
-    && (d.backgroundGradient===undefined||validGradient(d.backgroundGradient)) && ['grid', 'brick', 'hex', 'radial'].includes(d.repeat) && color(d.background) && typeof d.mirror === 'boolean'
+      && Array.isArray(s.points) && s.points.length >= (s.edges?1:3) && s.points.length <= 300 && s.points.every(p => p && inRange(p.x, -2000, 2000) && inRange(p.y, -2000, 2000))
+      && (s.fillGradient===undefined||validGradient(s.fillGradient)) && (s.strokeGradient===undefined||validGradient(s.strokeGradient)) && paint(s.fill) && paint(s.stroke) && (s.lineCap===undefined||['butt','round','square'].includes(s.lineCap)) && (s.lineJoin===undefined||['miter','round','bevel'].includes(s.lineJoin)) && (s.fillRule===undefined||['nonzero','evenodd'].includes(s.fillRule)) && [s.opacity,s.fillOpacity,s.strokeOpacity].every(n=>n===undefined||inRange(n,0,1))
+      && (s.tangents===undefined||(Array.isArray(s.tangents)&&s.tangents.length===s.points.length&&s.tangents.every(p=>p&&inRange(p.x,-4000,4000)&&inRange(p.y,-4000,4000))))
+      && (s.edges===undefined||(Array.isArray(s.edges)&&s.edges.length<=900&&s.edges.every(e=>e&&Number.isInteger(e.from)&&Number.isInteger(e.to)&&e.from>=0&&e.to>=0&&e.from<s.points.length&&e.to<s.points.length&&(e.from!==e.to||Boolean(e.c1&&e.c2))&&((e.c1===undefined&&e.c2===undefined)||(coordinate(e.c1)&&coordinate(e.c2)))))) && inRange(s.smooth, 0, 1) && inRange(s.strokeWidth, 0, 256))
+    && (d.backgroundGradient===undefined||validGradient(d.backgroundGradient)) && ['grid', 'brick', 'hex', 'radial'].includes(d.repeat) && paint(d.background) && typeof d.mirror === 'boolean'
     && inRange(d.spacingX, 60, 400) && inRange(d.spacingY, 60, 400) && inRange(d.angle, -180, 180) && inRange(d.sectors, 2, 24) && Number.isInteger(d.sectors)
 }
 /** Preserve previous storage keys as backups; migrate old objects into a single container layer. */

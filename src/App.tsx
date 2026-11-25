@@ -10,6 +10,8 @@ import { stack, canStack } from './core/stacking'
 import type { StackTarget, StackAction } from './core/stacking'
 import { StackMenu } from './components/StackMenu'
 import { LayerTree } from './components/LayerTree'
+import { graph, connect, joinNetworks, moveNode, removeNode, splitEdge } from './core/network'
+import { importSVG } from './core/svgImport'
 import { copyTarget, pasteTarget, readClipboard } from './core/clipboard'
 import type { ClipboardData } from './core/clipboard'
 import { paintCSS } from './core/paint'
@@ -34,6 +36,10 @@ function App() {
   const [state, dispatch] = useReducer(reducer, undefined, () => history(loadDocument()))
   const clipboard=useRef<ClipboardData|null>(null),pasteCount=useRef(0)
   const doc = state.present
+  const importInput=useRef<HTMLInputElement>(null)
+  const [importWarnings,setImportWarnings]=useState<string[]>([])
+  const [penAnchor,setPenAnchor]=useState<{shapeId:string;node:number}|null>(null)
+  const [selectedEdge,setSelectedEdge]=useState<number|null>(null)
   const [tool, setTool] = useState<Tool>('select')
   const [selectedId, setSelectedId] = useState<string | null>(() => doc.shapes.at(-1)?.id ?? null)
   const [selectedLayerId,setSelectedLayerId]=useState(()=>doc.layers.at(-1)!.id)
@@ -71,9 +77,9 @@ function App() {
   const end = () => dispatch({ type: 'end' })
   const change = <K extends keyof PatternDocument>(key: K, value: PatternDocument[K]) => dispatch({ type: state.gesture ? 'live' : 'edit', update: d => ({ ...d, tileOptions: tileOptions(d), [key]: value }) })
   const changeShape = <K extends keyof Shape>(key: K, value: Shape[K]) => { if (active && canEdit) dispatch({ type: state.gesture ? 'live' : 'edit', update: d => updateShape(d, active.id, shape => ({ ...shape, [key]: value })) }) }
-  const selectShape = (id: string | null, node: number | null = null) => { setSelectedId(id); setSelected(node);const object=doc.shapes.find(s=>s.id===id);if(object)setSelectedLayerId(object.layerId) }
+  const selectShape = (id: string | null, node: number | null = null) => { setSelectedId(id); setSelected(node);setSelectedEdge(null);const object=doc.shapes.find(s=>s.id===id);if(object)setSelectedLayerId(object.layerId) }
   const panelProps = (id: string) => ({ id, open: panels[id], onOpenChange: (open: boolean) => setPanels(p => ({ ...p, [id]: open })) })
-  function activateTool(next: Tool) { setTool(next); setDraft([]); setSelected(null);setPendingPolygon(null) }
+  function activateTool(next: Tool) { setPenAnchor(null);setSelectedEdge(null);setTool(next); setDraft([]); setSelected(null);setPendingPolygon(null) }
   function insert(shape: Shape) {
     if (!canInsert) return
     dispatch({ type: 'edit', update: d => addShape(d, {...shape,layerId:activeLayer.id}) }); setDraft([]); selectShape(shape.id); setTool('select');setPendingPolygon(null); setPanels(p => ({ ...p, layers: true,transform:true }))
@@ -106,19 +112,21 @@ function App() {
     applyStack({kind:'object',id:active.id},direction>0?'forward':'backward')
   }
 
-  function finishDraft() {
-    if (draft.length < 3 || !canInsert) return
-    const shape = { ...initialShape, id: crypto.randomUUID(), layerId:activeLayer.id, name: `Path ${doc.shapes.length + 1}`, points: draft, smooth: 0 }
-    insert(shape); setTool('nodes'); setSelected(0)
+  function finishDraft(){setPenAnchor(null)}
+  function penPoint(point:Point,shapeId?:string,node?:number):{shape:Shape;node:number}|null{
+    let shape=doc.shapes.find(s=>s.id===(shapeId??penAnchor?.shapeId))
+    if(shape&&!doc.layers.some(l=>l.id===shape!.layerId&&l.visible&&!l.locked))return null
+    if(shapeId&&shape&&node!==undefined&&penAnchor&&penAnchor.shapeId!==shapeId){const base=doc.shapes.find(s=>s.id===penAnchor.shapeId);if(!base||!doc.layers.some(l=>l.id===base.layerId&&l.visible&&!l.locked))return null;const joined=joinNetworks(base,penAnchor.node,shape,node);if(!joined){setMessage('Connect paths on the same unlocked layer, within the 300-anchor limit.');return null}dispatch({type:'live',update:d=>updateShape(removeShape(d,shapeId),base.id,()=>joined.shape)});setPenAnchor(null);selectShape(base.id,joined.node);setMessage('Connected paths using the starting object’s style.');return joined}
+    if(shapeId&&shape&&node!==undefined){let next=graph(shape);if(penAnchor?.shapeId===shapeId&&penAnchor.node!==node){next=connect(next,penAnchor.node,node) as typeof next;setPenAnchor(null)}else setPenAnchor({shapeId,node});dispatch({type:'live',update:d=>updateShape(d,shapeId,()=>next)});selectShape(shapeId,node);setPanels(p=>({...p,contour:true}));return {shape:next,node}}
+    if(!penAnchor||!shape){if(!canInsert)return null;shape={...initialShape,id:crypto.randomUUID(),layerId:activeLayer.id,name:`Path ${doc.shapes.length+1}`,points:[point],edges:[],smooth:0,fill:'none'};dispatch({type:'live',update:d=>addShape(d,shape!)});setPenAnchor({shapeId:shape.id,node:0});selectShape(shape.id,0);setPanels(p=>({...p,contour:true}));return {shape,node:0}}
+    if(shape.points.length>=300)return null
+    const g=graph(shape),index=g.points.length,next=connect({...g,points:[...g.points,point],tangents:g.tangents?[...g.points.map((_,i)=>g.tangents?.[i]??{x:0,y:0}),{x:0,y:0}]:undefined},penAnchor.node,index)
+    dispatch({type:'live',update:d=>updateShape(d,shape!.id,()=>next)});setPenAnchor({shapeId:shape.id,node:index});selectShape(shape.id,index);return {shape:next,node:index}
   }
-  function addNode() {
-    if (!active || !canEdit || active.points.length >= 300) return
-    const i = selected ?? 0, a = active.points[i], b = active.points[(i + 1) % active.points.length]
-    const points = [...active.points]; points.splice(i + 1, 0, { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 })
-    changeShape('points', points); setSelected(i + 1); setTool('nodes')
-  }
-  const undo = () => { if (draft.length) { setDraft(d => d.slice(0, -1)); return } setSelected(null); dispatch({ type: 'undo' }) }
-  const redo = () => { setSelected(null); dispatch({ type: 'redo' }) }
+  function addNode(){if(!active||!canEdit)return;const g=graph(active),edge=selectedEdge??g.edges.findIndex(e=>e.from===(selected??0)||e.to===(selected??0));const result=splitEdge(active,edge);if(result.node<0)return;dispatch({type:'edit',update:d=>updateShape(d,active.id,()=>result.shape)});selectShape(active.id,result.node);setTool('nodes');setPenAnchor(null)}
+  async function loadSVG(file:File){try{if(!canInsert)throw new Error('Show and unlock a layer before importing.');if(file.size>2000000)throw new Error('SVG files must be under 2 MB.');const result=importSVG(await file.text(),activeLayer.id,()=>crypto.randomUUID());if(doc.shapes.length+result.shapes.length>64)throw new Error('Import would exceed the 64 object limit.');dispatch({type:'edit',update:d=>({...d,shapes:[...d.shapes,...result.shapes]})});setTool('nodes');setPenAnchor(null);selectShape(result.shapes[0].id);setImportWarnings(result.warnings);setPanels(p=>({...p,layers:true,contour:true}));setMessage(`Imported ${result.shapes.length} editable vector ${result.shapes.length===1?'object':'objects'}`)}catch(error){setMessage(error instanceof Error?error.message:'SVG import failed.')}finally{if(importInput.current)importInput.current.value=''}}
+  const undo = () => { if (draft.length) { setDraft(d => d.slice(0, -1)); return } setPenAnchor(null);setSelectedEdge(null);setSelected(null); dispatch({ type: 'undo' }) }
+  const redo = () => { setPenAnchor(null);setSelectedEdge(null);setSelected(null); dispatch({ type: 'redo' }) }
   useEffect(() => {
     if (state.gesture) return
     const timeout = window.setTimeout(() => {
@@ -136,8 +144,8 @@ function App() {
   useEffect(() => {
     const handle = (event: KeyboardEvent) => {
       if ((event.target as HTMLElement)?.closest('input, select, textarea')) return
-      if (event.key === 'Escape') { dispatch({ type: 'cancel' }); setDraft([]);setPendingPolygon(null);if(tool==='shape')setTool('select'); setExportOpen(false);setStackMenu(null); return }
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'z') { event.preventDefault(); if (draft.length && !event.shiftKey) setDraft(d => d.slice(0, -1)); else { setDraft([]); setSelected(null); dispatch({ type: event.shiftKey ? 'redo' : 'undo' }) } return }
+      if (event.key === 'Escape') { setPenAnchor(null);setSelectedEdge(null);dispatch({ type: 'cancel' }); setDraft([]);setPendingPolygon(null);if(tool==='shape')setTool('select'); setExportOpen(false);setStackMenu(null); return }
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'z') { event.preventDefault(); if (draft.length && !event.shiftKey) setDraft(d => d.slice(0, -1)); else { setPenAnchor(null);setSelectedEdge(null);setDraft([]); setSelected(null); dispatch({ type: event.shiftKey ? 'redo' : 'undo' }) } return }
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'd' && !exportOpen) { event.preventDefault(); duplicateShape(); return }
       if ((event.metaKey || event.ctrlKey) && !exportOpen && (event.code === 'BracketLeft' || event.code === 'BracketRight')) {
         event.preventDefault()
@@ -147,20 +155,20 @@ function App() {
       if (event.metaKey || event.ctrlKey || event.altKey || exportOpen) return
       if (event.key === 'v') activateTool('select')
       if (event.key === 'a') activateTool('nodes')
-      if (event.key === 'p') { if (canInsert) activateTool('pen') }
+      if (event.key === 'p') { if (canInsert||canEdit) activateTool('pen') }
       if (event.key === 'h') activateTool('hand')
-      if (event.key === 'Enter' && draft.length >= 3) finishDraft()
+      if(event.key==='Enter'&&tool==='pen'){event.preventDefault();finishDraft()}
       if (active && canEdit && !draft.length) {
         if (event.key === 'Backspace' || event.key === 'Delete') {
           event.preventDefault()
-          if (selected !== null && (tool === 'nodes' || tool === 'pen')) { if (active.points.length > 3) { changeShape('points', active.points.filter((_, i) => i !== selected)); setSelected(null) } }
+          if(selectedEdge!==null){dispatch({type:'edit',update:d=>updateShape(d,active.id,s=>{const g=graph(s);return {...g,edges:g.edges.filter((_,i)=>i!==selectedEdge)}})});setSelectedEdge(null)}else if(selected!==null&&(tool==='nodes'||tool==='pen')){if(active.points.length>1){dispatch({type:'edit',update:d=>updateShape(d,active.id,s=>removeNode(s,selected))});setPenAnchor(null);setSelected(null)}}
           else deleteShape()
         }
         const arrows: Record<string, Point> = { ArrowLeft: { x: -1, y: 0 }, ArrowRight: { x: 1, y: 0 }, ArrowUp: { x: 0, y: -1 }, ArrowDown: { x: 0, y: 1 } }
         const delta = arrows[event.key]
         if (delta) {
           event.preventDefault(); const step = event.shiftKey ? 10 : 1
-          dispatch({ type: 'edit', update: d => updateShape(d, active.id, shape => selected !== null && (tool === 'nodes' || tool === 'pen') ? { ...shape, points: shape.points.map((p, i) => i === selected ? { x: clamp(p.x + delta.x * step, -2000, 2000), y: clamp(p.y + delta.y * step, -2000, 2000) } : p) } : translateShape(shape, { x: delta.x * step, y: delta.y * step })) })
+          dispatch({ type: 'edit', update: d => updateShape(d, active.id, shape => selected !== null && (tool === 'nodes' || tool === 'pen') ? moveNode(shape,selected,{x:clamp(shape.points[selected].x+delta.x*step,-2000,2000),y:clamp(shape.points[selected].y+delta.y*step,-2000,2000)}) : translateShape(shape, { x: delta.x * step, y: delta.y * step })) })
         }
       }
     }
@@ -192,29 +200,32 @@ function App() {
     finally { setExporting(false) }
   }
 
-  const objectControls=(only?:string)=><ObjectPanels only={only} doc={doc} active={active} canEdit={canEdit} selected={selected} tool={tool} aspectLocked={aspectLocked} setAspectLocked={setAspectLocked} panels={only?{[only]:true}:panels} setPanel={(id,open)=>setPanels(p=>({...p,[id]:open}))} dispatch={dispatch} changeShape={changeShape} begin={begin} end={end} onEditMode={()=>{setTool(tool==='nodes'||tool==='pen'?'select':'nodes');setSelected(null);setDraft([]);setPendingPolygon(null)}} onAddNode={addNode} onReorder={reorderShape} onClearPoint={()=>setSelected(null)} onFinish={finishDraft} draftLength={draft.length}/>
+  const objectControls=(only?:string)=><ObjectPanels selectedEdge={selectedEdge} onClearEdge={()=>setSelectedEdge(null)} penDrawing={Boolean(penAnchor)} only={only} doc={doc} active={active} canEdit={canEdit} selected={selected} tool={tool} aspectLocked={aspectLocked} setAspectLocked={setAspectLocked} panels={only?{[only]:true}:panels} setPanel={(id,open)=>setPanels(p=>({...p,[id]:open}))} dispatch={dispatch} changeShape={changeShape} begin={begin} end={end} onEditMode={()=>{setPenAnchor(null);setTool(tool==='nodes'||tool==='pen'?'select':'nodes');setSelected(null);setDraft([]);setPendingPolygon(null)}} onAddNode={addNode} onReorder={reorderShape} onClearPoint={()=>setSelected(null)} onFinish={finishDraft} draftLength={draft.length}/>
   const layerControls=<LayerTree onCopy={copySelection} onPaste={()=>{void pasteSelection()}} onStackMenu={openStackMenu} doc={doc} active={active} layerId={activeLayer.id} onLayer={id=>{setSelectedLayerId(id);setSelectedId(null);setSelected(null);setDraft([]);setPendingPolygon(null)}} onObject={id=>{selectShape(id);activateTool('select')}} dispatch={dispatch} onDuplicate={duplicateShape} onDelete={deleteShape}/>
   const repeatControls=(only?:string)=><RepeatPanels only={only} doc={doc} change={change} begin={begin} end={end} panels={only?{[only]:true}:panels} setPanel={(id,open)=>setPanels(p=>({...p,[id]:open}))} guides={guides} setGuides={setGuides} dispatch={dispatch}/>
-  const toolHint=draft.length?`${draft.length} points · Enter to close · Esc to cancel`:tool==='shape'?`Click to place a ${placementKind??'shape'}`:tool==='hand'?'Drag to pan · Scroll to zoom':tool==='pen'?'Click edges to add points · Alt-click points to remove':tool==='nodes'?'Drag nodes · Arrow keys to nudge · Shift for 10×':'Drag to move · Shift-resize locks proportions · Double-click for points'
+  const toolHint=draft.length?`${draft.length} points · Enter to close · Esc to cancel`:tool==='shape'?`Click to place a ${placementKind??'shape'}`:tool==='hand'?'Drag to pan · Scroll to zoom':tool==='pen'?'Click for lines · Drag for curves · Click nodes to branch/connect · Shift-click edges to split · Enter to finish':tool==='nodes'?'Drag nodes · Arrow keys to nudge · Shift for 10×':'Drag to move · Shift-resize locks proportions · Double-click for points'
 
-  return <div className="app-shell">
+  return <div className="app-shell" onDragOver={event=>{if(event.dataTransfer.types.includes('Files'))event.preventDefault()}} onDrop={event=>{if(event.dataTransfer.files.length){event.preventDefault();const file=event.dataTransfer.files[0];if(file.name.toLowerCase().endsWith('.svg'))void loadSVG(file);else setMessage('Choose an SVG vector file.')}}}>
+    <input ref={importInput} type="file" accept=".svg,image/svg+xml" aria-label="SVG file" style={{display:'none'}} onChange={event=>{const file=event.target.files?.[0];if(file)void loadSVG(file)}}/>
     <div className="workspace">
       <aside className={`left-panel ${leftCollapsed ? 'dock-collapsed' : ''}`} aria-label="Workspace panels">
         <div className="dock-header studio-brand-header"><div className="brand" aria-label="Tesselate"><span className="brand-mark">✳</span>{!leftCollapsed&&<span>tesselate</span>}</div><button className="icon-button" aria-label={leftCollapsed ? 'Expand workspace' : 'Collapse workspace'} aria-expanded={!leftCollapsed} title={leftCollapsed ? 'Expand workspace' : 'Collapse workspace'} onClick={() => setLeftCollapsed(!leftCollapsed)}><Icon name="left" size={16} /></button></div>
-        {leftCollapsed ? <div className="dock-rail">{(['select','nodes','pen','hand'] as Tool[]).map((t,i)=><button key={t} className={`icon-button ${tool===t?'selected':''}`} aria-label={['Arrow tool','Direct selection tool','Pen tool','Pan canvas'][i]} title={['Arrow (V)','Points (A)','Pen (P)','Pan (H)'][i]} disabled={t==='pen'&&!canInsert} onClick={()=>activateTool(t)}><Icon name={t} size={17}/></button>)}<span className="rail-divider"/>
+        {leftCollapsed ? <div className="dock-rail">{(['select','nodes','pen','hand'] as Tool[]).map((t,i)=><button key={t} className={`icon-button ${tool===t?'selected':''}`} aria-label={['Arrow tool','Direct selection tool','Pen tool','Pan canvas'][i]} title={['Arrow (V)','Points (A)','Pen (P)','Pan (H)'][i]} disabled={t==='pen'&&!canInsert&&!canEdit} onClick={()=>activateTool(t)}><Icon name={t} size={17}/></button>)}<span className="rail-divider"/>
           <RailMenu title="Shapes" icon="shapes" side="left"><div className="rail-shapes">{(['rectangle','ellipse','polygon'] as Primitive[]).map((kind,i)=><button data-close-rail key={kind} disabled={!canInsert} aria-pressed={tool==='shape'&&placementKind===kind} onClick={()=>choosePrimitive(kind)}><Icon name={['square','circle','hex'][i]} size={17}/>{['Rectangle / square','Ellipse / circle','Polygon'][i]}</button>)}</div></RailMenu>
+          <button className="icon-button" aria-label="Import SVG" title="Import SVG" disabled={!canInsert} onClick={()=>importInput.current?.click()}><Icon name="import" size={18}/></button>
           <RailMenu title="Layers" icon="layers" side="left">{layerControls}</RailMenu>
           {([['transform','fit','Transform'],['contour','nodes','Object'],['appearance','palette','Fill & stroke']] as const).map(([key,icon,title])=><RailMenu key={key} title={title} icon={icon} side="left">{objectControls(key)}</RailMenu>)}
         </div> : <div className="dock-scroll">
-          <Panel {...panelProps('tools')} title="Tools" icon="select"><div className="tools">{(['select','nodes','pen','hand'] as Tool[]).map((t,i)=><button key={t} className={tool===t?'tool active':'tool'} title={`${['Arrow','Direct selection','Pen','Pan'][i]} (${['V','A','P','H'][i]})`} aria-label={['Arrow tool','Direct selection tool','Pen tool','Pan canvas'][i]} disabled={t==='pen'&&!canInsert} aria-pressed={tool===t} onClick={()=>activateTool(t)}><Icon name={t} size={17}/><span>{['Arrow','Points','Pen','Pan'][i]}</span></button>)}</div><ShapeMenu open={shapeMenuOpen} setOpen={setShapeMenuOpen} disabled={!canInsert} selected={tool==='shape'?placementKind:null} onSelect={choosePrimitive}/>{!canInsert&&<p className="field-note">{doc.shapes.length>=64?'Object limit reached (64).':'Show and unlock a layer to add objects.'}</p>}</Panel>
+          <Panel {...panelProps('tools')} title="Tools" icon="select"><div className="tools">{(['select','nodes','pen','hand'] as Tool[]).map((t,i)=><button key={t} className={tool===t?'tool active':'tool'} title={`${['Arrow','Direct selection','Pen','Pan'][i]} (${['V','A','P','H'][i]})`} aria-label={['Arrow tool','Direct selection tool','Pen tool','Pan canvas'][i]} disabled={t==='pen'&&!canInsert&&!canEdit} aria-pressed={tool===t} onClick={()=>activateTool(t)}><Icon name={t} size={17}/><span>{['Arrow','Points','Pen','Pan'][i]}</span></button>)}</div><ShapeMenu open={shapeMenuOpen} setOpen={setShapeMenuOpen} disabled={!canInsert} selected={tool==='shape'?placementKind:null} onSelect={choosePrimitive}/><button className="text-button import-svg-button" disabled={!canInsert} onClick={()=>importInput.current?.click()}><Icon name="import" size={14}/>Import SVG</button>{!canInsert&&<p className="field-note">{doc.shapes.length>=64?'Object limit reached (64).':'Show and unlock a layer to add objects.'}</p>}</Panel>
           <Panel {...panelProps('layers')} title="Layers" icon="layers">{layerControls}</Panel>
           {objectControls()}
         </div>}
       </aside>
       <main className="studio">
         <div className="canvas-toolbar"><div className="history-actions"><button className="icon-button" aria-label="Undo" title="Undo (⌘/Ctrl Z)" disabled={!state.past.length && !state.gesture && !draft.length} onClick={undo}><Icon name="undo" /></button><button className="icon-button" aria-label="Redo" title="Redo (⌘/Ctrl Shift Z)" disabled={!state.future.length} onClick={redo}><Icon name="redo" /></button><span className="toolbar-divider" /><div className="pattern-title-area"><input aria-label="Pattern title" maxLength={120} value={doc.title??'Untitled pattern'} onChange={e=>change('title',e.target.value)}/><span className={storageError?'save-status error':'save-status'}>{storageError?'Local save unavailable':draft.length?'Drawing…':saved?'Saved on this device':'Saving…'}</span></div></div><div className="canvas-actions"><button className={`split-button ${split ? 'selected' : ''}`} aria-pressed={split} onClick={() => setSplit(!split)}><Icon name="split" size={16} /><span>Split preview</span></button></div></div>
+        {importWarnings.length>0&&<div className="import-report" role="status"><button className="icon-button" aria-label="Dismiss import report" onClick={()=>setImportWarnings([])}><Icon name="close" size={14}/></button><strong>SVG imported with notes</strong><ul>{importWarnings.map(note=><li key={note}>{note}</li>)}</ul></div>}
         <div className={`canvases ${split ? 'is-split' : ''}`}>
-          <Canvas help={toolHint} placement={!pendingPolygon&&placementKind?{kind:placementKind,sides:polygonSides}:null} onStackMenu={openStackMenu} doc={liveDoc} view={view} setView={setView} focus guides={guides} tool={tool} proportional={aspectLocked} canDraw={canInsert} onPlace={placeOnCanvas} activeId={active?.id ?? null} selected={selected} onSelect={selectShape} onEditNodes={() => setTool('nodes')} draft={draft} onDraftPoint={p => setDraft(prev => [...prev, p].slice(0, 300))} finishDraft={finishDraft} dispatch={dispatch} />
+          <Canvas penAnchor={penAnchor} selectedEdge={selectedEdge} onEdge={setSelectedEdge} onPen={penPoint} help={toolHint} placement={!pendingPolygon&&placementKind?{kind:placementKind,sides:polygonSides}:null} onStackMenu={openStackMenu} doc={liveDoc} view={view} setView={setView} focus guides={guides} tool={tool} proportional={aspectLocked} canDraw={canInsert||(tool==='pen'&&canEdit)} onPlace={placeOnCanvas} activeId={active?.id ?? null} selected={selected} onSelect={selectShape} onEditNodes={() => setTool('nodes')} draft={draft} onDraftPoint={p => setDraft(prev => [...prev, p].slice(0, 300))} finishDraft={finishDraft} dispatch={dispatch} />
           {split && <Canvas doc={liveDoc} view={previewView} setView={setPreviewView} focus={false} guides={false} tool="hand" proportional={false} canDraw={false} onPlace={()=>{}} activeId={null} selected={null} onSelect={() => {}} onEditNodes={() => {}} draft={[]} onDraftPoint={() => {}} finishDraft={() => {}} dispatch={dispatch} />}
         </div>
         <div className="canvas-status"><span><span className="green-dot"/>Live preview</span><span>{doc.repeat==='radial'?`${doc.sectors} sectors`:'Live repetition'}</span></div>

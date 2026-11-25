@@ -343,3 +343,10 @@ input[type=color]::-webkit-color-swatch { border: 0; border-radius: 2px; }
 .paint-angle { display: flex; align-items: center; gap: 5px; margin-top: 11px; font-size: 10px; }
 .paint-angle input { width: 60px; margin-left: auto; border: 1px solid #bbb; padding: 5px; font-size: 10px; border-radius: 3px; }
 .paint-note { line-height: 1.5; }
+.import-svg-button { margin-top: 13px; font-size: 11px; }
+.import-report { position: absolute; z-index: 7; top: 65px; left: 50%; transform: translateX(-50%); width: min(420px,90vw); max-height: 50vh; overflow: auto; border: 1px solid #bbb; border-radius: 6px; background: #fff; padding: 14px; font-size: 11px; box-shadow: 0 8px 30px #0002; line-height: 1.6; }
+.import-report > .icon-button { float: right; }
+.import-report ul { margin: 8px 0 0; padding-left: 18px; }
+.segment-controls { border-top: 1px solid #ccc; margin-top: 14px; }
+.segment-controls button[aria-pressed=true] { background: #222; color: #fff; }
+.node-modes { margin-top: 12px; }

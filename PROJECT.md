@@ -104,3 +104,9 @@ The left menu owns the logo and all object-related controls; repeat geometry, pa
 The shape dropdown only chooses a primitive tool. A canvas click supplies the placement position. Rectangle/ellipse tools place a default object; polygon placement asks for sides at the clicked location before committing. Dimensions live in a separate object Transform section and remain accessible during point editing.
 
 Tile effects are opt-in, with a master enable switch and separate Rotation, Mirror and Offset switches. Revealed controls belong to their enabled category; disabling bypasses the effect while preserving values. Legacy documents infer active switches from prior settings so existing artwork does not change. These optional fields and the pattern title remain backward-compatible with schema v3.
+
+## Editable paths, networks and SVG import
+
+Optional `edges` and `tangents` extend the v3 document without changing legacy contour rendering. Nodes are stored once and edges reference them; edges can be straight or carry explicit cubic controls. Supports open paths, closed contours, branches, cross-object joins, local segment conversion, control-handle editing and exact de Casteljau subdivision. All geometry transforms include controls and user-space gradient transforms. Region-specific face painting is a future feature.
+
+SVG imports use an inert parser plus svgpath normalization. Supported static geometry and paints remain editable vectors; unsupported rendering features receive import notes. Arbitrary SVG is not claimed to be lossless. Shared-edge tessellation constraints and Boolean cutting remain separate future milestones.

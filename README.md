@@ -26,7 +26,7 @@ Object controls live in the left menu. The **Transform** section always provides
 
 - **Arrow (V):** select and drag objects. Drag the eight bounding-box handles to resize. Hold Shift to preserve proportions; hold Alt to resize from the center. The inspector also provides W/H inputs and a persistent proportion lock.
 - **Point editing:** double-click an object with the arrow, or use Direct Selection (A), to edit its points. Drag points, use arrow keys (Shift = 10 units), or enter X/Y coordinates.
-- **Pen (P):** click empty space to draw a new closed path. Click its first point or press Enter to finish; Escape cancels. On existing contours, click near an edge to insert a point, drag points to adjust them, or Alt-click a point to remove it (minimum three points). Curves still use automatic handles controlled by Curve softness.
+- **Pen (P):** click for straight segments; click-drag anchors for Bézier curves. Enter finishes an open path. Click an existing node to continue or branch; click another node to connect or close the network. Select a segment to switch between Straight and Curve in Object controls; Shift-click a segment to split it without changing its curve. Drag blue handles to reshape curves (Alt drags a handle independently). Corner/Curve node controls affect a selected anchor. Alt-click an anchor to remove it. Escape cancels the current drag and ends the current drawing chain.
 - **Pan (H):** drag the work area. Middle-button drag also pans. Scroll or use zoom controls to zoom; the split preview has independent navigation.
 
 Duplicate an object with ⌘/Ctrl D. Undo with ⌘/Ctrl Z and redo with ⌘/Ctrl Shift Z. Delete removes a selected point in point-edit mode, or an object otherwise. Layer and object operations are undoable.
@@ -43,11 +43,11 @@ All visible objects repeat and export using the same evaluated transforms. Expor
 
 ## Current boundaries
 
-These are free motif repetitions, not guaranteed gap-free tessellations. There are no paired-edge constraints, Boolean paper cuts, imported SVGs, manually edited Bézier handles, multiple independently configured motifs/artboards, parameter-sweep generation, MCP server or macOS package yet. The export area is a single centered crop; its settings are session-only. See PROJECT.md for later milestones.
+These are free motif repetitions, not guaranteed gap-free tessellations. There are no paired-edge constraints, Boolean paper cuts, multiple independently configured motifs/artboards, parameter-sweep generation, MCP server or macOS package yet. The export area is a single centered crop; its settings are session-only. See PROJECT.md for later milestones.
 
 ## Architecture
 
-`src/core/geometry.ts` evaluates paths, affine transforms, conservative viewport culling, document validation and SVG output independently of React. `src/core/history.ts` groups gestures into undoable changes. `src/App.tsx` contains the editor, canvas interaction and browser export adapter. Thirty Node fixtures test transforms, culling, guide/lattice alignment, layer grouping, migration, resize modifiers, primitive limits, point hit testing, history, optional effect evaluation and SVG output; CI runs them with lint and the build. The canvas and shared motif rendering live in `src/components/Canvas.tsx`; shadcn Collapsible is in `src/components/ui/collapsible.tsx`.
+`src/core/geometry.ts` evaluates paths, affine transforms, conservative viewport culling, document validation and SVG output independently of React. `src/core/history.ts` groups gestures into undoable changes. `src/App.tsx` contains the editor, canvas interaction and browser export adapter. Automated Node fixtures test transforms, culling, guide/lattice alignment, layer grouping, migration, resize modifiers, primitive limits, point hit testing, history, optional effect evaluation and SVG output; CI runs them with lint and the build. The canvas and shared motif rendering live in `src/components/Canvas.tsx`; shadcn Collapsible is in `src/components/ui/collapsible.tsx`.
 
 Work on `dev`; promote to `main` by pull request. Production releases require explicit user instruction. No hosting or deployment is configured.
 
@@ -74,3 +74,11 @@ Option/Alt-drag a shape to move a duplicate. The same modifier works on layer/ob
 Type exact values beside any slider and press Enter (or blur) to commit; Escape cancels the entry. Rotation values support decimals. Use the adjacent reset icon to set an eligible control to zero.
 
 Expand Fill, Stroke or Background for custom hex entry, [official Tailwind v3.4.17 swatches](https://v3.tailwindcss.com/docs/customizing-colors), full shade libraries, and CMYK/RGB/black/white presets. CMYK colors are RGB screen approximations. Linear and radial gradients support 2–8 stops; choose a stop before applying a swatch. Gradients stay vector-based in SVG and are included in PNG export.
+
+## SVG import and vector networks
+
+Use **Import SVG** in Tools or the compact rail, or drop an `.svg` file on the app. Imports are additive on the selected unlocked layer and undo as one operation. Supported vectors include paths (lines, cubic/quadratic/smooth curves and arcs), rectangles/rounded rectangles, ellipses/circles, polygons, polylines and lines. Groups and local `<use>` references are flattened; presentation/inline/simple stylesheet colors, opacity, gradients, transforms, fill rules and compound holes are retained. Arcs become editable cubic segments. Large artwork is centered and reduced to fit.
+
+Imported vectors share the same node/segment/handle editing and repeat engine as drawn objects. Shared nodes allow branches and closed loops; moving a shared anchor updates every attached segment. To join separate objects, start at a node in one, select the other object with the pen, then click its node. Both objects must be on the same unlocked layer. Joining uses the starting object's paint and is undoable. Region-specific face painting is not implemented.
+
+The importer reports unsupported features. Convert text to outlines and expand images, masks, clipping, filters and patterns to plain paths in the source tool when needed. Dashed/non-scaling strokes and nested SVG viewport scaling are not retained; non-uniform transformed stroke widths are approximated. Scripts and external references are never inserted or executed. Limits: 2 MB, 64 total objects, 300 anchors and 900 edges per object. Gradient limits remain 2–8 stops.

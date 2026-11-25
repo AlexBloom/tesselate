@@ -24,7 +24,7 @@ Updated November 16, 2026 (America/New_York).
 
 ## Future work
 
-Existing shared-edge/Escher design goals remain in PROJECT.md. Constrained edge pairing, Boolean cuts, SVG import, manual Bézier handles, independent artboards, MCP and macOS packaging remain pending. No seamless-tiling guarantee is made for free compositions.
+Existing shared-edge/Escher design goals remain in PROJECT.md. Constrained edge pairing, Boolean cuts, independent artboards, MCP and macOS packaging remain pending. No seamless-tiling guarantee is made for free compositions.
 
 ## Neutral interface and production release
 
@@ -74,3 +74,12 @@ Existing shared-edge/Escher design goals remain in PROJECT.md. Constrained edge 
 - Linear/radial gradients support 2–8 color stops, stop positions and fractional angles. Swatches apply to the selected stop. Optional gradient fields extend schema v3 compatibly; legacy solid colors are preserved. Canvas, repeats, thumbnails, SVG and PNG exports use the same SVG gradient definitions.
 - Build/lint and 41 core tests pass. Isolated Chrome verified canvas/panel Option-drag, native object/layer clipboard, undo/cancellation, precise rotations/zero resets, Tailwind/standard/custom paints, multi-stop/background gradients, reload, and actual vector SVG/320×240 PNG downloads. No page errors in the full interaction check.
 - Task preview: http://127.0.0.1:61380/ (checked free before launch; session 89146). Previous listeners were not changed. These changes are on dev; production has not been republished.
+
+## Pen networks and SVG import
+
+- Pen now creates straight or explicit cubic segments with click/click-drag, a live pending-segment preview, open-path finishing, shared nodes, branches, closing connections and joins between objects on the same unlocked layer. Joins use the starting object’s style and are announced.
+- Object controls convert selected segments between Straight/Curve, split them exactly, disconnect segments and switch node corner/curve behavior. Blue handles support linked or Alt-independent dragging. Node deletion remaps graph indices; moving/resizing/copying includes handles and paint transforms.
+- Import SVG via a Tools/rail button or file drop. Supported static paths/shapes, nested transforms, local references, basic stylesheet/inline styles, opacity, stroke caps/joins, compound holes and gradients remain editable vectors. Unsupported text/images/filters/masks/clips/patterns are reported; text should be outlined in the source tool. Arcs are converted to cubics. Import limits are validated before insertion; XML is never attached to the live DOM.
+- Optional network, opacity, line-style and gradient-coordinate fields extend schema v3 compatibly; legacy documents keep their previous paths. No region-specific network face painting yet.
+- Build/lint and 52 core tests pass. Chrome checks cover pen drawing/handles, branching/shared nodes, segment conversion/splitting, cross-object joins and undo, imported SVG geometry/styles/gradients/holes, vector export, reload and inert-content notes.
+- Task preview http://127.0.0.1:56148/ (`pnpm dev --host 127.0.0.1 --port 56148 --strictPort`, session 54835); chosen port checked before launch. Other listeners unchanged. Changes are on dev, not republished to production.

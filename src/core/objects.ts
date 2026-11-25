@@ -1,3 +1,4 @@
+import { geometryPoints, mapGeometry } from './network.ts'
 import type { Bounds, Point, Shape } from './geometry.ts'
 export type Primitive = 'rectangle' | 'ellipse' | 'polygon'
 export function primitivePoints(kind: Primitive, width: number, height: number, sides = 6): { points: Point[]; smooth: number } {
@@ -7,19 +8,19 @@ export function primitivePoints(kind: Primitive, width: number, height: number, 
   return { points: Array.from({length:n},(_,i)=>({x:Math.cos(i*2*Math.PI/n-Math.PI/2)*width/2,y:Math.sin(i*2*Math.PI/n-Math.PI/2)*height/2})), smooth: kind==='ellipse' ? 1 : 0 }
 }
 export function objectBounds(shape: Shape): Bounds {
-  const x=Math.min(...shape.points.map(p=>p.x)),y=Math.min(...shape.points.map(p=>p.y))
-  return {x,y,width:Math.max(...shape.points.map(p=>p.x))-x,height:Math.max(...shape.points.map(p=>p.y))-y}
+  const x=Math.min(...geometryPoints(shape).map(p=>p.x)),y=Math.min(...geometryPoints(shape).map(p=>p.y))
+  return {x,y,width:Math.max(...geometryPoints(shape).map(p=>p.x))-x,height:Math.max(...geometryPoints(shape).map(p=>p.y))-y}
 }
 export function scaleObject(shape: Shape, anchor: Point, sx: number, sy: number, proportional = false): Shape {
   function limits(axis:'x'|'y') {
     let min=-Infinity,max=Infinity
-    for(const p of shape.points){const d=p[axis]-anchor[axis];if(!d)continue;const a=(-2000-anchor[axis])/d,b=(2000-anchor[axis])/d;min=Math.max(min,Math.min(a,b));max=Math.min(max,Math.max(a,b))}
+    for(const p of geometryPoints(shape)){const d=p[axis]-anchor[axis];if(!d)continue;const a=(-2000-anchor[axis])/d,b=(2000-anchor[axis])/d;min=Math.max(min,Math.min(a,b));max=Math.min(max,Math.max(a,b))}
     return [min,max]
   }
   const x=limits('x'),y=limits('y')
   sx=Math.max(x[0],Math.min(x[1],sx));sy=Math.max(y[0],Math.min(y[1],sy))
   if(proportional){const amount=Math.min(Math.abs(sx),Math.abs(sy));sx=Math.sign(sx)*amount;sy=Math.sign(sy)*amount}
-  return {...shape,points:shape.points.map(p=>({x:anchor.x+(p.x-anchor.x)*sx,y:anchor.y+(p.y-anchor.y)*sy}))}
+  return mapGeometry(shape,p=>({x:anchor.x+(p.x-anchor.x)*sx,y:anchor.y+(p.y-anchor.y)*sy}),p=>({x:p.x*sx,y:p.y*sy}))
 }
 export function resizeObject(shape: Shape, handle: Point, target: Point, proportional: boolean, centered = false): Shape {
   const b=objectBounds(shape)

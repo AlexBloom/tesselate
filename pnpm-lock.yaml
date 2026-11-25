@@ -17,6 +17,9 @@ importers:
       react-dom:
         specifier: ^19.3.1
         version: 19.3.1(react@19.3.1)
+      svgpath:
+        specifier: ^2.6.0
+        version: 2.6.0
     devDependencies:
       '@types/node':
         specifier: ^24.19.2
@@ -687,6 +690,9 @@ packages:
     resolution: {integrity: sha512-KGj/8Y43x35aZVDtt+J4mK1hoLGHULMYfSkODJNQjNDC3oW1PqPoxMwo0pLUsWM/UEGzON/NxeHywEfNXNP3Vw==}
     engines: {node: '>=0.10.0'}
 
+  svgpath@2.6.0:
+    resolution: {integrity: sha512-OIWR6bKzXvdXYyO4DK/UWa1VA1JeKq8E+0ug2DG98Y/vOmMpfZNj+TIG988HjfYSqtcy/hFOtZq/n/j5GSESNg==}
+
   tinyglobby@0.2.17:
     resolution: {integrity: sha512-wXR/dYpcqKmfWpEdZjiKJOwCNFndD0DMnrW/cYjVGttEkBfVgcLFHoNrlj47mjOVic9yyNu65alsgF4NQyTa2g==}
     engines: {node: '>=12.0.0'}
@@ -1175,6 +1181,8 @@ snapshots:
   scheduler@0.28.0: {}
 
   source-map-js@1.2.2: {}
+
+  svgpath@2.6.0: {}
 
   tinyglobby@0.2.17:
     dependencies:
