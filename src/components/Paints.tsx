@@ -1,0 +1,5 @@
+import type { PatternDocument } from '../core/geometry'
+import type { Gradient } from '../core/paint'
+import { gradientEndpoints } from '../core/paint'
+function Definition({id,g}:{id:string;g:Gradient}){const stops=g.stops.map((s,i)=><stop key={i} offset={s.offset} stopColor={s.color}/>);return g.type==='radial'?<radialGradient id={id}>{stops}</radialGradient>:<linearGradient id={id} {...gradientEndpoints(g.angle)}>{stops}</linearGradient>}
+export function PaintDefinitions({doc,prefix}:{doc:PatternDocument;prefix:string}){return <defs>{doc.shapes.map((s,i)=><g key={s.id}>{s.fillGradient&&<Definition id={`${prefix}-fill-${i}`} g={s.fillGradient}/>} {s.strokeGradient&&<Definition id={`${prefix}-stroke-${i}`} g={s.strokeGradient}/>}</g>)}{doc.backgroundGradient&&<Definition id={`${prefix}-background`} g={doc.backgroundGradient}/>}</defs>}

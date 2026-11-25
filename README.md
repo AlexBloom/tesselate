@@ -66,3 +66,11 @@ New documents start with a square. Select a primitive and hover over the canvas 
 Drag the dotted grips in Layers to reorder layers or objects. Top rows paint in front; the small position numbers increase toward the front. Drag objects onto another unlocked layer to move them there. Right-click objects (in the canvas or panel) or layer rows for Forward, Backward, Send to front, and Send to back. Use Cmd/Ctrl+] or [ to step forward/backward, and add Shift to send to front/back. Select a layer name to use these shortcuts for that layer. All stacking changes support undo.
 
 Collapsed dock icons open control flyouts on hover; click to pin one while editing. Escape, an outside click, or the close button dismisses it. The canvas’s lower-left shortcut badge shows tool hints on hover, focus or tap. New shapes start with white fills and black 1.5px strokes; stroke color can be edited even at zero stroke width.
+
+## Copy, precise values and paints
+
+Option/Alt-drag a shape to move a duplicate. The same modifier works on layer/object rows and drag grips in Layers; copying a layer includes all its objects. Cmd/Ctrl-C and V copy/paste the selected object or layer, with Copy/Paste buttons in Layers as an alternative. Text editing keeps normal text clipboard behavior. Each paste is undoable and receives fresh IDs and a 20px offset.
+
+Type exact values beside any slider and press Enter (or blur) to commit; Escape cancels the entry. Rotation values support decimals. Use the adjacent reset icon to set an eligible control to zero.
+
+Expand Fill, Stroke or Background for custom hex entry, [official Tailwind v3.4.17 swatches](https://v3.tailwindcss.com/docs/customizing-colors), full shade libraries, and CMYK/RGB/black/white presets. CMYK colors are RGB screen approximations. Linear and radial gradients support 2–8 stops; choose a stop before applying a swatch. Gradients stay vector-based in SVG and are included in PNG export.

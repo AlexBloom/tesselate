@@ -7,13 +7,18 @@ import type { Primitive } from '../core/objects'
 import { initialShape } from '../core/geometry'
 import type { StackTarget } from '../core/stacking'
 import type { Action } from '../core/history'
+import { PaintDefinitions } from './Paints'
+import { shapePaint } from '../core/paint'
+import { copyTarget, pasteTarget } from '../core/clipboard'
 import { CanvasHelp } from './CanvasHelp'
 import { Icon } from './controls'
 export type Tool = 'select' | 'nodes' | 'pen' | 'hand' | 'shape'
 export type View = { x: number; y: number; zoom: number }
 const clamp = (n: number, min: number, max: number) => Math.min(max, Math.max(min, n))
 export function MotifPaths({ doc }: { doc: PatternDocument }) {
-  return <>{visibleShapes(doc).map(shape => <path key={shape.id} data-shape-id={shape.id} d={pathData(shape.points, shape.smooth)} fill={shape.fill} stroke={shape.stroke} strokeWidth={shape.strokeWidth} strokeLinejoin="round" />)}</>
+  const prefix=useId().replace(/[^a-zA-Z0-9_-]/g,'')
+  return <><PaintDefinitions doc={doc} prefix={prefix}/>{visibleShapes(doc).map(shape => <path key={shape.id} data-shape-id={shape.id} d={pathData(shape.points, shape.smooth)} fill={shapePaint(doc,shape,prefix,'fill')} stroke={shapePaint(doc,shape,prefix,'stroke')} strokeWidth={shape.strokeWidth} strokeLinejoin="round" />)}</>
+
 }
 type CanvasProps = {
   help?: string; placement?: {kind:Primitive;sides:number} | null; onStackMenu?: (target:StackTarget,point:Point)=>void;
@@ -85,14 +90,15 @@ export function Canvas({ help, placement, onStackMenu, doc, view, setView, focus
   return <div className={`canvas-pane ${focus ? 'focus-pane' : 'pattern-pane'} tool-${tool}`} ref={container}>
     <div className="pane-label"><span className="label-dot" />{focus ? (guides ? guide.label.toUpperCase() : 'SOURCE + CONTEXT') : 'PATTERN PREVIEW'}{!focus && <span className="live-label">LIVE</span>}</div>
     <svg ref={svgRef} className="drawing-canvas" role="img" aria-label={focus ? 'Editable shapes and live repeated context' : 'Live pattern preview, drag to pan'} viewBox={`${bounds.x} ${bounds.y} ${bounds.width} ${bounds.height}`} style={{ background: doc.background }} onPointerDown={start} onPointerMove={move} onPointerLeave={()=>setHover(null)} onPointerUp={() => stop()} onPointerCancel={() => stop(true)} onLostPointerCapture={() => stop()} onWheel={event => zoom(Math.exp(-event.deltaY * 0.0015))}>
+      <PaintDefinitions doc={doc} prefix={id}/><rect {...bounds} fill={doc.backgroundGradient?`url(#${id}-background)`:doc.background} pointerEvents="none"/>
       <defs><g id={`motif-${id}`}><MotifPaths doc={doc} /></g></defs>
       <g data-layer="repetitions" opacity={focus ? 0.25 : 1} pointerEvents="none">{copies.filter(c => !focus || !c.source).map(copy => <use key={copy.id} href={`#motif-${id}`} transform={matrixText(copy.matrix)} />)}</g>
       {focus && guides && <g data-layer="geometry-guides" data-geometry={doc.repeat} aria-label={`${guide.label} guides`} pointerEvents="none">
-        {guideCopies.map(copy => <path key={copy.id} data-source-cell={copy.source ? 'true' : undefined} d={guide.path} transform={matrixText(guideMatrix(doc, copy))} fill={copy.source ? doc.background : 'none'} fillOpacity=".45" stroke={copy.source ? '#555555' : '#808080'} strokeOpacity={copy.source ? 0.8 : 0.24} strokeDasharray={copy.source ? '5 4' : undefined} strokeWidth={(copy.source ? 1.2 : 0.65) / view.zoom} />)}
+        {guideCopies.map(copy => <path key={copy.id} data-source-cell={copy.source ? 'true' : undefined} d={guide.path} transform={matrixText(guideMatrix(doc, copy))} fill={copy.source&&!doc.backgroundGradient ? doc.background : 'none'} fillOpacity=".45" stroke={copy.source ? '#555555' : '#808080'} strokeOpacity={copy.source ? 0.8 : 0.24} strokeDasharray={copy.source ? '5 4' : undefined} strokeWidth={(copy.source ? 1.2 : 0.65) / view.zoom} />)}
 
       </g>}
       {focus && <g transform={sourceTransform} data-layer="source-shapes">
-        {visible.map(shape => <path key={shape.id} onContextMenu={event=>{if(onStackMenu){event.preventDefault();event.stopPropagation();onSelect(shape.id);onStackMenu({kind:"object",id:shape.id},{x:event.clientX,y:event.clientY})}}} data-source-shape={shape.id} d={pathData(shape.points, shape.smooth)} fill={shape.fill} stroke={shape.stroke} strokeWidth={shape.strokeWidth} strokeLinejoin="round" style={{pointerEvents:editableShape(doc,shape)?'auto':'none'}} className={tool === 'hand' || tool === 'pen' ? '' : 'source-shape'} role="button" tabIndex={tool === 'pen' || tool==='shape' || !editableShape(doc,shape) ? -1 : 0} aria-label={`Select ${shape.name}`} onFocus={() => { if (!drag.current&&tool!=='shape') onSelect(shape.id) }} onDoubleClick={() => { if (tool !== 'hand' && tool !== 'pen' && tool!=='shape') { onSelect(shape.id); onEditNodes() } }} onKeyDown={event => { if (event.key === 'Enter') { event.stopPropagation(); onSelect(shape.id); onEditNodes() } }} onPointerDown={event => {
+        {visible.map(shape => <path key={shape.id} onContextMenu={event=>{if(onStackMenu){event.preventDefault();event.stopPropagation();onSelect(shape.id);onStackMenu({kind:"object",id:shape.id},{x:event.clientX,y:event.clientY})}}} data-source-shape={shape.id} d={pathData(shape.points, shape.smooth)} fill={shapePaint(doc,shape,id,'fill')} stroke={shapePaint(doc,shape,id,'stroke')} strokeWidth={shape.strokeWidth} strokeLinejoin="round" style={{pointerEvents:editableShape(doc,shape)?'auto':'none'}} className={tool === 'hand' || tool === 'pen' ? '' : 'source-shape'} role="button" tabIndex={tool === 'pen' || tool==='shape' || !editableShape(doc,shape) ? -1 : 0} aria-label={`Select ${shape.name}`} onFocus={() => { if (!drag.current&&tool!=='shape') onSelect(shape.id) }} onDoubleClick={() => { if (tool !== 'hand' && tool !== 'pen' && tool!=='shape') { onSelect(shape.id); onEditNodes() } }} onKeyDown={event => { if (event.key === 'Enter') { event.stopPropagation(); onSelect(shape.id); onEditNodes() } }} onPointerDown={event => {
           if (event.button !== 0 || tool === 'hand' || tool==='shape' || draft.length || !editableShape(doc,shape)) return
           if(tool==='pen'){
             const p=point(event),near=closestSegment(shape,p)
@@ -100,6 +106,12 @@ export function Canvas({ help, placement, onStackMenu, doc, view, setView, focus
             event.stopPropagation(); event.preventDefault();const index=near.index+1;onSelect(shape.id,index);dispatch({type:'begin'});dispatch({type:'live',update:d=>updateShape(d,shape.id,s=>{const points=[...s.points];points.splice(index,0,{x:clamp(p.x,-2000,2000),y:clamp(p.y,-2000,2000)});return {...s,points}})});drag.current={kind:'node',id:shape.id,index};svgRef.current?.setPointerCapture(event.pointerId);return
           }
           event.stopPropagation(); event.preventDefault();
+          if(event.altKey && tool==='select'){
+            const data=copyTarget(doc,{kind:'object',id:shape.id}),result=data&&pasteTarget(doc,data,shape.layerId,()=>crypto.randomUUID(),{x:0,y:0})
+            if(!result)return
+            const copy=result.doc.shapes.find(s=>s.id===result.target.id)!
+            lastHit.current=null;dispatch({type:'begin'});dispatch({type:'live',update:()=>result.doc});onSelect(copy.id);drag.current={kind:'shape',id:copy.id,original:copy,start:point(event)};svgRef.current?.setPointerCapture(event.pointerId);return
+          }
           const previous=lastHit.current,now=performance.now();lastHit.current={id:shape.id,time:now,x:event.clientX,y:event.clientY}
           if(tool==='select'&&previous?.id===shape.id&&now-previous.time<400&&Math.hypot(previous.x-event.clientX,previous.y-event.clientY)<6){lastHit.current=null;onSelect(shape.id);onEditNodes();return}
           onSelect(shape.id); dispatch({ type: 'begin' }); drag.current = { kind: 'shape', id: shape.id, original: shape, start: point(event) }; svgRef.current?.setPointerCapture(event.pointerId)

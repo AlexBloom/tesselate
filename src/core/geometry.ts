@@ -1,3 +1,5 @@
+import { validGradient, gradientSVG } from './paint.ts'
+import type { Gradient } from './paint.ts'
 export type Point = { x: number; y: number }
 export type Matrix = [number, number, number, number, number, number]
 export type Bounds = { x: number; y: number; width: number; height: number }
@@ -9,6 +11,8 @@ export type Shape = {
   name: string
   points: Point[]
   smooth: number
+  fillGradient?: Gradient
+  strokeGradient?: Gradient
   fill: string
   stroke: string
   strokeWidth: number
@@ -36,6 +40,7 @@ export type PatternDocument = {
   angle: number
   mirror: boolean
   sectors: number
+  backgroundGradient?: Gradient
   background: string
 }
 export type Instance = { id: string; matrix: Matrix; cellMatrix: Matrix; source: boolean }
@@ -212,8 +217,9 @@ export function exportSVG(doc: PatternDocument, width: number, height: number, s
   const copies = instances(doc, bounds, 100000)
   const visible = visibleShapes(doc)
   if (copies.length * visible.length > 100000) throw new Error('Too many shapes to export. Increase spacing or reduce the output area.')
-  const paths = visible.map((shape, i) => `<path id="shape-${i}" d="${pathData(shape.points, shape.smooth)}" fill="${shape.fill}" stroke="${shape.stroke}" stroke-width="${shape.strokeWidth}" stroke-linejoin="round"/>`).join('')
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="${-w / 2} ${-h / 2} ${w} ${h}"><title>Tesselate pattern</title><defs><clipPath id="artboard"><rect x="${-w / 2}" y="${-h / 2}" width="${w}" height="${h}"/></clipPath><g id="motif">${paths}</g></defs><rect x="${-w / 2}" y="${-h / 2}" width="${w}" height="${h}" fill="${doc.background}"/><g clip-path="url(#artboard)">${copies.map(copy => `<use href="#motif" transform="${matrixText(copy.matrix)}"/>`).join('')}</g></svg>`
+  const paintDefs=visible.map((s,i)=>(s.fillGradient?gradientSVG(`fill-${i}`,s.fillGradient):'')+(s.strokeGradient?gradientSVG(`stroke-${i}`,s.strokeGradient):'')).join('')+(doc.backgroundGradient?gradientSVG('background-paint',doc.backgroundGradient):'')
+  const paths = visible.map((shape, i) => `<path id="shape-${i}" d="${pathData(shape.points, shape.smooth)}" fill="${shape.fillGradient?`url(#fill-${i})`:shape.fill}" stroke="${shape.strokeGradient?`url(#stroke-${i})`:shape.stroke}" stroke-width="${shape.strokeWidth}" stroke-linejoin="round"/>`).join('')
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="${-w / 2} ${-h / 2} ${w} ${h}"><title>Tesselate pattern</title><defs>${paintDefs}<clipPath id="artboard"><rect x="${-w / 2}" y="${-h / 2}" width="${w}" height="${h}"/></clipPath><g id="motif">${paths}</g></defs><rect x="${-w / 2}" y="${-h / 2}" width="${w}" height="${h}" fill="${doc.backgroundGradient?'url(#background-paint)':doc.background}"/><g clip-path="url(#artboard)">${copies.map(copy => `<use href="#motif" transform="${matrixText(copy.matrix)}"/>`).join('')}</g></svg>`
 }
 
 const color = (c: unknown) => typeof c === 'string' && /^#[0-9a-f]{6}$/i.test(c)
@@ -234,8 +240,8 @@ export function validDocument(value: unknown): value is PatternDocument {
     && new Set(d.shapes.map(s => s?.id)).size === d.shapes.length
     && d.shapes.every(s => s && d.layers.some(l => l.id === s.layerId) && typeof s.id === 'string' && s.id.length > 0 && s.id.length <= 100 && typeof s.name === 'string' && s.name.length <= 80 && typeof s.visible === 'boolean'
       && Array.isArray(s.points) && s.points.length >= 3 && s.points.length <= 300 && s.points.every(p => p && inRange(p.x, -2000, 2000) && inRange(p.y, -2000, 2000))
-      && color(s.fill) && color(s.stroke) && inRange(s.smooth, 0, 1) && inRange(s.strokeWidth, 0, 8))
-    && ['grid', 'brick', 'hex', 'radial'].includes(d.repeat) && color(d.background) && typeof d.mirror === 'boolean'
+      && (s.fillGradient===undefined||validGradient(s.fillGradient)) && (s.strokeGradient===undefined||validGradient(s.strokeGradient)) && color(s.fill) && color(s.stroke) && inRange(s.smooth, 0, 1) && inRange(s.strokeWidth, 0, 8))
+    && (d.backgroundGradient===undefined||validGradient(d.backgroundGradient)) && ['grid', 'brick', 'hex', 'radial'].includes(d.repeat) && color(d.background) && typeof d.mirror === 'boolean'
     && inRange(d.spacingX, 60, 400) && inRange(d.spacingY, 60, 400) && inRange(d.angle, -180, 180) && inRange(d.sectors, 2, 24) && Number.isInteger(d.sectors)
 }
 /** Preserve previous storage keys as backups; migrate old objects into a single container layer. */

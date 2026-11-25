@@ -64,3 +64,13 @@ Existing shared-edge/Escher design goals remain in PROJECT.md. Constrained edge 
 - Moved the shortcut badge out of the left dock onto the editable canvas’s lower-left corner. Tool instructions are hidden by default and appear above the badge on hover, keyboard focus or tap; Escape dismisses the tooltip. There is one badge even in split preview.
 - Published through PR #7: https://alexbloom.design/tesselate/. Production workflow https://github.com/AlexBloom/tesselate/actions/runs/44588593078 passed. Includes compact control flyouts and high-contrast defaults.
 - Build/lint, 35 core tests and local/live Chrome checks at 897×853 passed. Verified badge bounds in the canvas, hidden instructions until hover/focus, tooltip above badge, Escape dismissal and a single badge in split/collapsed layouts, with no page errors.
+
+## Clipboard, precision controls and paint libraries
+
+- Option/Alt-drag on the canvas duplicates an object and moves the copy. In Layers, Option/Alt-drag a row or its grip to duplicate an object or a whole layer. Each copy/move is one undo step; Escape cancels a drag copy.
+- Native Cmd/Ctrl-C and V copy/paste selected objects or entire layers, including their contents, styling and gradients. Copy/Paste buttons are also available in Layers. Text inputs retain native text clipboard behavior. Clipboard payloads are validated; new IDs, insertion limits and destination locks are enforced. Pasted objects offset by 20px per paste.
+- Every slider now has numeric entry (Enter/blur commits; Escape cancels). Rotation fields accept fractional values, and ranges containing zero have individual zero-reset buttons.
+- Shared Fill, Stroke and Background paint controls support custom hex colors, official Tailwind v3.4.17 500 defaults, all 22 families with shades 50–950, and CMYK/RGB/black/white swatches. CMYK presets are screen RGB approximations, not a print color profile.
+- Linear/radial gradients support 2–8 color stops, stop positions and fractional angles. Swatches apply to the selected stop. Optional gradient fields extend schema v3 compatibly; legacy solid colors are preserved. Canvas, repeats, thumbnails, SVG and PNG exports use the same SVG gradient definitions.
+- Build/lint and 41 core tests pass. Isolated Chrome verified canvas/panel Option-drag, native object/layer clipboard, undo/cancellation, precise rotations/zero resets, Tailwind/standard/custom paints, multi-stop/background gradients, reload, and actual vector SVG/320×240 PNG downloads. No page errors in the full interaction check.
+- Task preview: http://127.0.0.1:61380/ (checked free before launch; session 89146). Previous listeners were not changed. These changes are on dev; production has not been republished.

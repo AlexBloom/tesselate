@@ -1,4 +1,4 @@
-import { useEffect, useReducer, useState } from 'react'
+import { useEffect, useReducer, useRef, useState } from 'react'
 import { addShape, exportSVG, initialDocument, initialShape, instances, matrixText, migrateDocument, removeShape, translateShape, updateShape, tileOptions } from './core/geometry'
 import type { PatternDocument, Point, Shape } from './core/geometry'
 import { history, reducer } from './core/history'
@@ -10,6 +10,9 @@ import { stack, canStack } from './core/stacking'
 import type { StackTarget, StackAction } from './core/stacking'
 import { StackMenu } from './components/StackMenu'
 import { LayerTree } from './components/LayerTree'
+import { copyTarget, pasteTarget, readClipboard } from './core/clipboard'
+import type { ClipboardData } from './core/clipboard'
+import { paintCSS } from './core/paint'
 import { RailMenu } from './components/RailMenu'
 import { ShapeMenu } from './components/ShapeMenu'
 import { RepeatPanels } from './components/RepeatPanels'
@@ -20,7 +23,6 @@ import './App.css'
 
 const storageKey = 'tesselate-gpt.document.v3'
 const clamp = (n: number, min: number, max: number) => Math.min(max, Math.max(min, n))
-const palettes = [['#ffffff', '#eeeeee'], ['#62794c', '#f4f2e9'], ['#b45e47', '#f6e8d7'], ['#415c80', '#edf1f2'], ['#ae7844', '#f4eddb'], ['#825c81', '#f2e8ee'], ['#e5c77a', '#293e37']]
 function loadDocument(): PatternDocument {
   for(const key of [storageKey,'tesselate-gpt.document.v2','tesselate-gpt.document.v1']){
     try { const doc=migrateDocument(JSON.parse(localStorage.getItem(key)??'null'));if(doc)return doc } catch { /* Try the previous saved version. */ }
@@ -30,6 +32,7 @@ function loadDocument(): PatternDocument {
 
 function App() {
   const [state, dispatch] = useReducer(reducer, undefined, () => history(loadDocument()))
+  const clipboard=useRef<ClipboardData|null>(null),pasteCount=useRef(0)
   const doc = state.present
   const [tool, setTool] = useState<Tool>('select')
   const [selectedId, setSelectedId] = useState<string | null>(() => doc.shapes.at(-1)?.id ?? null)
@@ -82,10 +85,18 @@ function App() {
   }
   function choosePrimitive(kind:Primitive){setPlacementKind(kind);activateTool('shape');selectShape(null)}
   function placeOnCanvas(point:Point,screen:Point){if(!canInsert||!placementKind)return;if(placementKind==='polygon')setPendingPolygon({point,screen});else placePrimitive(placementKind,point)}
-  function duplicateShape() {
-    if (!active || !canEdit || !canInsert) return
-    insert(translateShape({ ...active, id: crypto.randomUUID(), name: `${active.name} copy`.slice(0, 80) }, { x: 20, y: 20 }))
+  function selectionTarget():StackTarget{return active?{kind:'object',id:active.id}:{kind:'layer',id:activeLayer.id}}
+  function applyPaste(data:ClipboardData|null=clipboard.current){
+    if(!data||state.gesture)return false
+    const result=pasteTarget(doc,data,activeLayer.id,()=>crypto.randomUUID(),{x:20*(pasteCount.current+1),y:20*(pasteCount.current+1)})
+    if(!result){setMessage('Cannot paste: unlock/show the destination layer, or reduce the object/layer count.');return false}
+    pasteCount.current++;dispatch({type:'edit',update:()=>result.doc});setDraft([]);setSelected(null);setTool('select')
+    if(result.target.kind==='object')selectShape(result.target.id);else{setSelectedId(null);setSelectedLayerId(result.target.id)}
+    return true
   }
+  function copySelection(){const data=copyTarget(doc,selectionTarget());if(!data)return;clipboard.current=data;pasteCount.current=0;void navigator.clipboard?.writeText(JSON.stringify(data)).catch(()=>{});setMessage(`Copied ${data.kind}`)}
+  async function pasteSelection(){try{const text=await navigator.clipboard.readText();const data=readClipboard(text);if(data){if(JSON.stringify(data)!==JSON.stringify(clipboard.current))pasteCount.current=0;clipboard.current=data;applyPaste(data);return}}catch{/* Use this app session's clipboard when browser access is unavailable. */}applyPaste()}
+  function duplicateShape(){const data=copyTarget(doc,selectionTarget());if(data){const count=pasteCount.current;pasteCount.current=0;applyPaste(data);pasteCount.current=count}}
   function deleteShape() {
     if (!active || !canEdit) return
     dispatch({ type: 'edit', update: d => removeShape(d, active.id) }); setSelectedId(null); setSelected(null)
@@ -116,6 +127,12 @@ function App() {
     return () => clearTimeout(timeout)
   }, [doc, state.gesture])
   useEffect(() => { if (!message) return; const timeout = setTimeout(() => setMessage(''), 6000); return () => clearTimeout(timeout) }, [message])
+  useEffect(()=>{
+    const editing=(target:EventTarget|null)=>(target as HTMLElement)?.closest('input,select,textarea,[contenteditable=true]')
+    const copy=(event:ClipboardEvent)=>{if(exportOpen||state.gesture||editing(event.target))return;const data=copyTarget(doc,selectionTarget());if(data&&event.clipboardData){event.preventDefault();event.clipboardData.setData('text/plain',JSON.stringify(data));clipboard.current=data;pasteCount.current=0}}
+    const paste=(event:ClipboardEvent)=>{if(exportOpen||state.gesture||editing(event.target))return;const text=event.clipboardData?.getData('text/plain')??'',data=text?readClipboard(text):clipboard.current;if(!data)return;if(JSON.stringify(data)!==JSON.stringify(clipboard.current))pasteCount.current=0;clipboard.current=data;event.preventDefault();applyPaste(data)}
+    window.addEventListener('copy',copy);window.addEventListener('paste',paste);return()=>{window.removeEventListener('copy',copy);window.removeEventListener('paste',paste)}
+  })
   useEffect(() => {
     const handle = (event: KeyboardEvent) => {
       if ((event.target as HTMLElement)?.closest('input, select, textarea')) return
@@ -175,8 +192,8 @@ function App() {
     finally { setExporting(false) }
   }
 
-  const objectControls=(only?:string)=><ObjectPanels only={only} doc={doc} active={active} canEdit={canEdit} selected={selected} tool={tool} aspectLocked={aspectLocked} setAspectLocked={setAspectLocked} panels={only?{[only]:true}:panels} setPanel={(id,open)=>setPanels(p=>({...p,[id]:open}))} dispatch={dispatch} changeShape={changeShape} begin={begin} end={end} onEditMode={()=>{setTool(tool==='nodes'||tool==='pen'?'select':'nodes');setSelected(null);setDraft([]);setPendingPolygon(null)}} onAddNode={addNode} onReorder={reorderShape} onClearPoint={()=>setSelected(null)} onFinish={finishDraft} draftLength={draft.length} palettes={palettes}/>
-  const layerControls=<LayerTree onStackMenu={openStackMenu} doc={doc} active={active} layerId={activeLayer.id} onLayer={id=>{setSelectedLayerId(id);setSelectedId(null);setSelected(null);setDraft([]);setPendingPolygon(null)}} onObject={id=>{selectShape(id);activateTool('select')}} dispatch={dispatch} onDuplicate={duplicateShape} onDelete={deleteShape}/>
+  const objectControls=(only?:string)=><ObjectPanels only={only} doc={doc} active={active} canEdit={canEdit} selected={selected} tool={tool} aspectLocked={aspectLocked} setAspectLocked={setAspectLocked} panels={only?{[only]:true}:panels} setPanel={(id,open)=>setPanels(p=>({...p,[id]:open}))} dispatch={dispatch} changeShape={changeShape} begin={begin} end={end} onEditMode={()=>{setTool(tool==='nodes'||tool==='pen'?'select':'nodes');setSelected(null);setDraft([]);setPendingPolygon(null)}} onAddNode={addNode} onReorder={reorderShape} onClearPoint={()=>setSelected(null)} onFinish={finishDraft} draftLength={draft.length}/>
+  const layerControls=<LayerTree onCopy={copySelection} onPaste={()=>{void pasteSelection()}} onStackMenu={openStackMenu} doc={doc} active={active} layerId={activeLayer.id} onLayer={id=>{setSelectedLayerId(id);setSelectedId(null);setSelected(null);setDraft([]);setPendingPolygon(null)}} onObject={id=>{selectShape(id);activateTool('select')}} dispatch={dispatch} onDuplicate={duplicateShape} onDelete={deleteShape}/>
   const repeatControls=(only?:string)=><RepeatPanels only={only} doc={doc} change={change} begin={begin} end={end} panels={only?{[only]:true}:panels} setPanel={(id,open)=>setPanels(p=>({...p,[id]:open}))} guides={guides} setGuides={setGuides} dispatch={dispatch}/>
   const toolHint=draft.length?`${draft.length} points · Enter to close · Esc to cancel`:tool==='shape'?`Click to place a ${placementKind??'shape'}`:tool==='hand'?'Drag to pan · Scroll to zoom':tool==='pen'?'Click edges to add points · Alt-click points to remove':tool==='nodes'?'Drag nodes · Arrow keys to nudge · Shift for 10×':'Drag to move · Shift-resize locks proportions · Double-click for points'
 
@@ -214,7 +231,7 @@ function App() {
     {stackMenu&&<StackMenu point={stackMenu.point} target={stackMenu.target} can={action=>canStack(doc,stackMenu.target,action)} onAction={action=>applyStack(stackMenu.target,action)} onClose={()=>setStackMenu(null)}/>}
     {pendingPolygon&&<PolygonPlacement screen={pendingPolygon.screen} sides={polygonSides} setSides={setPolygonSides} onPlace={()=>placePrimitive('polygon',pendingPolygon.point,polygonSides)} onCancel={()=>setPendingPolygon(null)}/>}
     {message && <div className="toast" role="status">{message}<button aria-label="Dismiss message" onClick={() => setMessage('')}><Icon name="close" size={14} /></button></div>}
-    {exportOpen && <div className="modal-backdrop" onClick={e => { if (e.target === e.currentTarget) setExportOpen(false) }}><div className="export-modal" role="dialog" aria-modal="true" aria-labelledby="export-title" onKeyDown={e => { if (e.key === 'Escape') setExportOpen(false); if (e.key === 'Tab') { const els = Array.from(e.currentTarget.querySelectorAll<HTMLElement>('button:not([disabled]), input')); const first = els[0], last = els.at(-1); if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last?.focus() } else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first?.focus() } } }}><div className="modal-heading"><div><p className="eyebrow">FROM EXPLORATION TO ARTWORK</p><h2 id="export-title">Export your pattern</h2></div><button className="icon-button" aria-label="Close export" autoFocus onClick={() => setExportOpen(false)}><Icon name="close" /></button></div><div className="export-thumbnail" style={{ background: doc.background }}><svg viewBox="-260 -100 520 200"><defs><g id="export-thumb-motif"><MotifPaths doc={doc} /></g></defs>{instances(doc, { x: -260, y: -100, width: 520, height: 200 }).map(c => <use key={c.id} href="#export-thumb-motif" transform={matrixText(c.matrix)} />)}</svg></div><div className="export-dimensions"><label>Width, px<input aria-label="Export width" type="number" min={1} max={16000} value={width} onChange={e => setWidth(e.target.valueAsNumber || 0)} /></label><span>×</span><label>Height, px<input aria-label="Export height" type="number" min={1} max={16000} value={height} onChange={e => setHeight(e.target.valueAsNumber || 0)} /></label></div><label className="export-scale">Pattern scale<span><input aria-label="Export pattern scale" type="number" min={25} max={400} value={exportScale} onChange={e => setExportScale(e.target.valueAsNumber || 0)} />%</span></label><p className="field-note">Exports every visible shape in stacking order. Hidden layers, guides and selection marks are excluded.</p><div className="export-buttons"><button disabled={exporting} onClick={() => download('png')}>Export PNG</button><button className="primary" disabled={exporting} onClick={() => download('svg')}><Icon name="download" size={16} />{exporting ? 'Preparing…' : 'Export SVG'}</button></div></div></div>}
+    {exportOpen && <div className="modal-backdrop" onClick={e => { if (e.target === e.currentTarget) setExportOpen(false) }}><div className="export-modal" role="dialog" aria-modal="true" aria-labelledby="export-title" onKeyDown={e => { if (e.key === 'Escape') setExportOpen(false); if (e.key === 'Tab') { const els = Array.from(e.currentTarget.querySelectorAll<HTMLElement>('button:not([disabled]), input')); const first = els[0], last = els.at(-1); if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last?.focus() } else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first?.focus() } } }}><div className="modal-heading"><div><p className="eyebrow">FROM EXPLORATION TO ARTWORK</p><h2 id="export-title">Export your pattern</h2></div><button className="icon-button" aria-label="Close export" autoFocus onClick={() => setExportOpen(false)}><Icon name="close" /></button></div><div className="export-thumbnail" style={{ background: paintCSS(doc.background,doc.backgroundGradient) }}><svg viewBox="-260 -100 520 200"><defs><g id="export-thumb-motif"><MotifPaths doc={doc} /></g></defs>{instances(doc, { x: -260, y: -100, width: 520, height: 200 }).map(c => <use key={c.id} href="#export-thumb-motif" transform={matrixText(c.matrix)} />)}</svg></div><div className="export-dimensions"><label>Width, px<input aria-label="Export width" type="number" min={1} max={16000} value={width} onChange={e => setWidth(e.target.valueAsNumber || 0)} /></label><span>×</span><label>Height, px<input aria-label="Export height" type="number" min={1} max={16000} value={height} onChange={e => setHeight(e.target.valueAsNumber || 0)} /></label></div><label className="export-scale">Pattern scale<span><input aria-label="Export pattern scale" type="number" min={25} max={400} value={exportScale} onChange={e => setExportScale(e.target.valueAsNumber || 0)} />%</span></label><p className="field-note">Exports every visible shape in stacking order. Hidden layers, guides and selection marks are excluded.</p><div className="export-buttons"><button disabled={exporting} onClick={() => download('png')}>Export PNG</button><button className="primary" disabled={exporting} onClick={() => download('svg')}><Icon name="download" size={16} />{exporting ? 'Preparing…' : 'Export SVG'}</button></div></div></div>}
   </div>
 }
 export default App
